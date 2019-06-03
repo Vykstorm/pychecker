@@ -3,7 +3,7 @@
 import typing
 import collections.abc
 from typing import *
-from validators import Validator, TypeValidator, IteratorValidator, IterableValidator
+from validators import Validator, TypeValidator, IteratorValidator, IterableValidator, EmptyValidator
 from inspect import isclass
 
 
@@ -65,7 +65,7 @@ def parse_annotation(x) -> Validator:
         kind, args = get_type_hint_info(x)
 
         # Parse each arg specified on the type hint
-        args = tuple(map(parse, args))
+        args = tuple(map(parse_annotation, args))
 
         # Iterator
         if kind == collections.abc.Iterator:
@@ -94,6 +94,4 @@ def parse_annotation(x) -> Validator:
             return TypeValidator(x)
         raise TypeError()
 
-
-
-    raise NotImplementedError()
+    return EmptyValidator()
