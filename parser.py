@@ -38,7 +38,7 @@ def get_type_hint_info(x) -> Tuple[Any, Tuple]:
 
 
 
-def parse(x) -> Validator:
+def parse_annotation(x) -> Validator:
     '''
     This method will turn a type annotation into a validator.
 
@@ -57,7 +57,6 @@ def parse(x) -> Validator:
     of the form IteratorValidator(parse(expr))
 
     Iterator[int] -> IteratorValidator(TypeValidator([int]))
-    Iterator[int, float, str] -> IteratorValidator(TypeValidator([int, float, str]))
 
     '''
 
