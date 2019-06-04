@@ -139,13 +139,19 @@ class Validator:
 
 
 
-
 class EmptyValidator(Validator):
     '''
     Validator that matches any value
     '''
     def __call__(self, value):
         return True
+
+    def validate(self, value):
+        '''
+        Overrided method to increase performance
+        '''
+        return (True, value)
+
 
     def brief(self):
         return 'any'
