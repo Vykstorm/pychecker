@@ -106,7 +106,7 @@ def build_wrapper(func, *args, **kwargs):
 
         # Validate each argument
         for k, param, arg, validator in zip(count(), sig.parameters.keys(), args, param_validators):
-            valid, value = validator.validate(arg)
+            valid, value = validator(arg)
             if not valid:
                 msg = '{} (at function {})'.format(value, func.__name__).replace('?', param)
                 raise Exception(msg)
@@ -116,7 +116,7 @@ def build_wrapper(func, *args, **kwargs):
         result = func(*args)
 
         # Finally validate the function return value
-        valid, value = ret_validator.validate(result)
+        valid, value = ret_validator(result)
         if not valid:
             msg = '{} (at function {})'.format(value, func.__name__).replace('?', 'return value')
             raise Exception(msg)

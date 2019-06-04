@@ -44,7 +44,6 @@ A full error message will be:
 'Validation error at function bar: x must be a int value'
 
 
-
 - The last kind of validator is like the second one, but it allows also to do validation
 by demand:
 If the argument is valid, you do 'yield True'. After that, you can also
@@ -84,27 +83,35 @@ from itertools import count
 
 class Validator:
     '''
-    Super class for all base validators. Validator dont need to be instances of
-    classes, only callables that satisfies one of the three interfaces explained.
+    Super class for all base validators.
     '''
-    def __call__(self, value) -> Union[bool, Iterator]:
+    def validate(self, value) -> Union[bool, Iterator]:
         '''
-        Validates the given argument.
+        Validates the given argument. This method must implement one of the three
+        interfaces explained. Thus, it must return one of the next results.
+
+        - A single boolean value True/False which indicates if the given argument is
+        valid or not
+
+        - A generator or iterator object that yields the value False + an error message (string)
+        if the given argument is not valid or the value True + optional new value for the argument
         '''
         raise NotImplementedError()
 
 
 
-    def validate(self, value) -> Tuple[bool, Any]:
+    def __call__(self, value) -> Tuple[bool, Any]:
         '''
+        This method also validates the given argument calling validate() method
+
         :return A tuple with two items. The first indicates if the given argument
         is valid or not (True or False).
         The second item will be string with the error message provided by this validator
         if the first item is False.
-        Otherwise, it must be set to the same value as the given argument being validated
+        Otherwise, it will be set to the same value as the given argument being validated
         or a replacement for it (for on-demand validation)
         '''
-        result = self(value)
+        result = self.validate(value)
         assert isinstance(result, (bool, Iterator))
         default_msg = '? is not valid'
 
@@ -144,15 +151,8 @@ class EmptyValidator(Validator):
     '''
     Validator that matches any value
     '''
-    def __call__(self, value):
-        return True
-
     def validate(self, value):
-        '''
-        Overrided method to increase performance
-        '''
-        return (True, value)
-
+        return True
 
     def brief(self):
         return 'any'
@@ -175,7 +175,7 @@ class TypeValidator(Validator):
         self.check_subclasses = check_subclasses
         assert len(self.types) > 0
 
-    def __call__(self, value) -> Generator:
+    def validate(self, value) -> Generator:
         if self.check_subclasses:
             valid = isinstance(value, self.types)
         else:
@@ -215,7 +215,7 @@ class IteratorProxy(ProxyMixin, collections.abc.Iterator):
 
     def __next__(self):
         old = next(self.obj)
-        valid, new = self.validator.validate(old)
+        valid, new = self.validator(old)
         if not valid:
             raise Exception('? must be an iterator of {} but {} found'.format(self.validator.brief(), type(old).__name__))
         return new
@@ -230,7 +230,7 @@ class IterableProxy(ProxyMixin, collections.abc.Iterable):
         try:
             while True:
                 old = next(it)
-                valid, new = self.validator.validate(old)
+                valid, new = self.validator(old)
                 if not valid:
                     raise Exception('? must be an iterable of {} but {} found'.format(self.validator.brief(), type(old).__name__))
                 yield new
@@ -254,7 +254,7 @@ class CallableProxy(ProxyMixin, collections.abc.Callable):
         if self.vargs is not None:
             args = list(args)
             for k, validator, param, arg in zip(count(), self.vargs, bounded.arguments.keys(), args):
-                valid, value = validator.validate(arg)
+                valid, value = validator(arg)
                 if not valid:
                     raise Exception('? callable expected {} on param \'{}\' but got {}'.format(
                         validator.brief(), param, type(arg).__name__
@@ -266,7 +266,8 @@ class CallableProxy(ProxyMixin, collections.abc.Callable):
 
         # Validate return value
         if self.vret is not None:
-            valid, value = self.vret.validate(ret)
+            validator = self.vret
+            valid, value = validator(ret)
             if not valid:
                 raise Exception('Expected {} return value calling to ? but got {}'.format(
                     self.vret.brief(), type(ret).__name__
@@ -297,7 +298,7 @@ class IteratorValidator(Validator):
         super().__init__()
         self.inner = inner
 
-    def __call__(self, value) -> Generator:
+    def validate(self, value) -> Generator:
         if not isinstance(value, Iterator):
             yield False
             raise Exception('? must be a iterator')
@@ -332,7 +333,7 @@ class IterableValidator(Validator):
         super().__init__()
         self.inner = inner
 
-    def __call__(self, value) -> Generator:
+    def validate(self, value) -> Generator:
         if not isinstance(value, Iterable):
             yield False
             raise Exception('? must be an iterable')
@@ -374,7 +375,7 @@ class CallableValidator(Validator):
             args = list(args)
         self.args, self.ret = args, ret
 
-    def __call__(self, value) -> Generator:
+    def validate(self, value) -> Generator:
         if not callable(value):
             yield False
             raise Exception('? must be a callable')
