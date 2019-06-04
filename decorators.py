@@ -1,8 +1,10 @@
 
 
+from typing import *
 from functools import lru_cache, wraps, update_wrapper
+from itertools import count
 from inspect import signature
-
+from parser import parse_annotation
 
 
 INVALID_USAGE_MESSAGE = '''
@@ -69,11 +71,58 @@ def build_wrapper(func, *args, **kwargs):
     if len(args) > 0:
         raise ValueError('Positional arguments are not allowed in @checked decorator. '+
                          'Use keyword arguments instead')
+    # Change validation settings
     options = kwargs
-    annotations = func.__annotations__
 
+    # Get function annotations & signature
+    annotations = func.__annotations__
+    sig = signature(func)
+
+    # Replace default values with "Any" validator
+    s = sig.replace(parameters=[param.replace(default=parse_annotation(Any)) for key, param in sig.parameters.items()])
+
+    # Parse param annotations to validators and bound them to the function signature
+    bounded = s.bind_partial(
+        **dict([(key, parse_annotation(annot)) for key, annot in annotations.items() if key != 'return'])
+    )
+    bounded.apply_defaults()
+
+    param_validators = bounded.args
+
+    # Also parse the return value annotation into a validator
+    ret_validator = parse_annotation(annotations['return'] if 'return' in annotations else Any)
+
+
+    # Validated function definition
     @wraps(func)
     def wrapper(*args, **kwargs):
-        return func(*args, **kwargs)
+
+        # Bind arguments like if we call to the wrapped function
+        bounded = sig.bind(*args, **kwargs)
+        # Apply function default values
+        bounded.apply_defaults()
+        # Get bounded args
+        args = list(bounded.args)
+
+        # Validate each argument
+        for k, param, arg, validator in zip(count(), sig.parameters.keys(), args, param_validators):
+            valid, value = validator.validate(arg)
+            if not valid:
+                msg = '{} (at function {})'.format(value, func.__name__).replace('?', param)
+                raise Exception(msg)
+            args[k] = value
+
+        # Now call the wrapped function
+        result = func(*args)
+
+        # Finally validate the function return value
+        valid, value = ret_validator.validate(result)
+        if not valid:
+            msg = '{} (at function {})'.format(value, func.__name__).replace('?', 'return value')
+            raise Exception(msg)
+        result = value
+
+        # Return the final output
+        return result
 
     return wrapper
