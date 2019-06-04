@@ -211,7 +211,7 @@ class TypeValidator(Validator):
 
         if not valid:
             yield False
-            raise Exception('? must be an {} but got {} instead'.format(
+            raise Exception('? must be {} but got {} instead'.format(
                 self.brief(), type(value).__name__ if value is not None else None))
         yield True
 
@@ -242,6 +242,9 @@ class UserValidator(Validator):
         Constructor.
         :param func: Must be a callable object that implements the validator interface
         describe at the heading of this file.
+
+        e.g:
+        UserValidator(lambda x: x > 0) # Checks for all values greater than zero
         '''
         super().__init__()
         self.func = func
@@ -252,6 +255,32 @@ class UserValidator(Validator):
             raise ValueError('Custom validator must return a boolean value or an iterator')
         return result
 
+
+class OptionalValidator(Validator):
+    '''
+    Validator that checks if the given argument satisifies another validator or is None.
+    e.g:
+    OptionalValidator() # Checks for Optional = Any
+    OptionalValidator(TypeValidator([int])) # Checks for Optional[int] = Union[int, None]
+    '''
+    def __init__(self, inner: Optional[Validator]=None) -> None:
+        super().__init__()
+        self.inner = inner
+
+    def validate(self, value):
+        if self.inner is not None and value is not None:
+            valid, new = self.inner(value)
+            if not valid:
+                yield False
+                raise Exception('? must be an {} but got {}'.format(
+                    self.brief(), type(value).__name__ if value is not None else None
+                ))
+            value = new
+        yield True
+        yield value
+
+    def brief(self) -> str:
+        return 'optional ' + self.inner.brief()
 
 
 class ProxyMixin:

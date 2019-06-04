@@ -69,7 +69,7 @@ def parse_annotation(x) -> Validator:
     '''
 
     # None validator
-    if x is None:
+    if x in (None, type(None)) or (isinstance(x, collections.abc.Iterable) and (tuple(x) == (None), tuple(x) == (type(None)))):
         return NoneValidator()
 
     # Explicit empty validator if 'Any' or ... specified
@@ -94,6 +94,13 @@ def parse_annotation(x) -> Validator:
         # Callable
         if kind == collections.abc.Callable:
             return CallableValidator(args[:-1], args[-1])
+
+        # Union
+        if kind == Union:
+            # Optional
+            if len(args) == 2 and isinstance(args[-1], NoneValidator):
+                return OptionalValidator(args[0])
+            return EmptyValidator()
 
         # TODO
         # ...
