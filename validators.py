@@ -80,6 +80,8 @@ from operator import attrgetter
 from inspect import signature
 from itertools import count
 
+from errors import ValidationError
+
 
 class Validator:
     '''
@@ -100,16 +102,32 @@ class Validator:
 
 
 
-    def __call__(self, value) -> Tuple[bool, Any]:
+    def __call__(self, value, throw_error: bool=False) -> Tuple[bool, Any]:
         '''
-        This method also validates the given argument calling validate() method
+        This method also validates the given argument calling self.validate(value)
 
-        :return A tuple with two items. The first indicates if the given argument
+        :return
+        If throw_error is False (Default), it returns the next:
+
+        A tuple with two items. The first indicates if the given argument
         is valid or not (True or False).
         The second item will be string with the error message provided by this validator
         if the first item is False.
         Otherwise, it will be set to the same value as the given argument being validated
         or a replacement for it (for on-demand validation)
+
+        e.g:
+        v = TypeValidator([int])
+        v(1) -> (True, 1)
+        v('Hello world') -> (False, 'value must be an int but got str instead')
+
+        Otherwise, if throw_error is True and the given argument is valid, returns the same
+        as if throw_error was False, whereas if its not valid, raises an Exception with the error
+        message provided
+
+        e.g:
+        v(1, throw_error=True) -> (True, 1)
+        v('Hello world', throw_error=True) -> raises ValidationError('value must be an int but got str instead')
         '''
         result = self.validate(value)
         assert isinstance(result, (bool, Iterator))
@@ -118,6 +136,9 @@ class Validator:
         if isinstance(result, bool):
             if result:
                 return True, value
+
+            if throw_error:
+                raise ValidationError(default_msg)
             return False, default_msg
 
         valid = next(result)
@@ -135,6 +156,9 @@ class Validator:
             message = default_msg
         except Exception as e:
             message = default_msg if len(e.args) == 0 or not isinstance(e.args[0], str) else e.args[0]
+
+        if throw_error:
+            raise ValidationError(message)
         return False, message
 
 
@@ -217,7 +241,7 @@ class IteratorProxy(ProxyMixin, collections.abc.Iterator):
         old = next(self.obj)
         valid, new = self.validator(old)
         if not valid:
-            raise Exception('? must be an iterator of {} but {} found'.format(self.validator.brief(), type(old).__name__))
+            raise ValidationError('? must be an iterator of {} but {} found'.format(self.validator.brief(), type(old).__name__))
         return new
 
 class IterableProxy(ProxyMixin, collections.abc.Iterable):
@@ -232,7 +256,7 @@ class IterableProxy(ProxyMixin, collections.abc.Iterable):
                 old = next(it)
                 valid, new = self.validator(old)
                 if not valid:
-                    raise Exception('? must be an iterable of {} but {} found'.format(self.validator.brief(), type(old).__name__))
+                    raise ValidationError('? must be an iterable of {} but {} found'.format(self.validator.brief(), type(old).__name__))
                 yield new
         except StopIteration:
             pass
@@ -256,7 +280,7 @@ class CallableProxy(ProxyMixin, collections.abc.Callable):
             for k, validator, param, arg in zip(count(), self.vargs, bounded.arguments.keys(), args):
                 valid, value = validator(arg)
                 if not valid:
-                    raise Exception('? callable expected {} on param \'{}\' but got {}'.format(
+                    raise ValidationError('? callable expected {} on param \'{}\' but got {}'.format(
                         validator.brief(), param, type(arg).__name__
                     ))
                 args[k] = value
@@ -269,7 +293,7 @@ class CallableProxy(ProxyMixin, collections.abc.Callable):
             validator = self.vret
             valid, value = validator(ret)
             if not valid:
-                raise Exception('Expected {} return value calling to ? but got {}'.format(
+                raise ValidationError('Expected {} return value calling to ? but got {}'.format(
                     self.vret.brief(), type(ret).__name__
                 ))
 

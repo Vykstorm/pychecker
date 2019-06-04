@@ -6,6 +6,8 @@ from itertools import count
 from inspect import signature
 from parser import parse_annotation
 
+from errors import ValidationError
+
 
 INVALID_USAGE_MESSAGE = '''
     Invalid usage of the decorator
@@ -96,33 +98,34 @@ def build_wrapper(func, *args, **kwargs):
     # Validated function definition
     @wraps(func)
     def wrapper(*args, **kwargs):
+        try:
+            # Bind arguments like if we call to the wrapped function
+            bounded = sig.bind(*args, **kwargs)
+            # Apply function default values
+            bounded.apply_defaults()
+            # Get bounded args
+            args = list(bounded.args)
 
-        # Bind arguments like if we call to the wrapped function
-        bounded = sig.bind(*args, **kwargs)
-        # Apply function default values
-        bounded.apply_defaults()
-        # Get bounded args
-        args = list(bounded.args)
+            # Validate each argument
+            try:
+                for k, param, arg, validator in zip(count(), sig.parameters.keys(), args, param_validators):
+                    valid, args[k] = validator(arg, throw_error=True)
+            except ValidationError as e:
+                raise ValidationError(e.msg.replace('?', param))
 
-        # Validate each argument
-        for k, param, arg, validator in zip(count(), sig.parameters.keys(), args, param_validators):
-            valid, value = validator(arg)
-            if not valid:
-                msg = '{} (at function {})'.format(value, func.__name__).replace('?', param)
-                raise Exception(msg)
-            args[k] = value
 
-        # Now call the wrapped function
-        result = func(*args)
+            # Now call the wrapped function
+            result = func(*args)
 
-        # Finally validate the function return value
-        valid, value = ret_validator(result)
-        if not valid:
-            msg = '{} (at function {})'.format(value, func.__name__).replace('?', 'return value')
-            raise Exception(msg)
-        result = value
+            # Finally validate the function return value
+            try:
+                valid, result = ret_validator(result, throw_error=True)
+            except ValidationError as e:
+                raise ValidationError(e.msg.replace('?', 'return value'))
 
-        # Return the final output
-        return result
+            # Return the final output
+            return result
+        except ValidationError as e:
+            raise ValidationError('{} (at function {})'.format(e.msg, func.__name__))
 
     return wrapper
