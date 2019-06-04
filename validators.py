@@ -76,6 +76,7 @@ def validate(value : Any) -> Generator:
 
 
 from typing import *
+import collections.abc
 from operator import attrgetter
 from inspect import signature
 from itertools import count
@@ -184,7 +185,7 @@ class TypeValidator(Validator):
         if not valid:
             yield False
             raise Exception('? must be an {} but got {} instead'.format(
-                self.brief(), type(value).__name__))
+                self.brief(), type(value).__name__ if value is not None else None))
         yield True
 
     def brief(self) -> str:
@@ -196,7 +197,7 @@ class TypeValidator(Validator):
 
 
 
-class Proxy:
+class ProxyMixin:
     def __init__(self, obj) -> None:
         self.obj = obj
 
@@ -207,13 +208,10 @@ class Proxy:
         return repr(self.obj)
 
 
-class IteratorProxy(Proxy):
+class IteratorProxy(ProxyMixin, collections.abc.Iterator):
     def __init__(self, obj : Iterator, validator : Validator) -> None:
         super().__init__(obj)
         self.validator = validator
-
-    def __iter__(self):
-        return self
 
     def __next__(self):
         old = next(self.obj)
@@ -222,8 +220,7 @@ class IteratorProxy(Proxy):
             raise Exception('? must be an iterator of {} but {} found'.format(self.validator.brief(), type(old).__name__))
         return new
 
-
-class IterableProxy(Proxy):
+class IterableProxy(ProxyMixin, collections.abc.Iterable):
     def __init__(self, obj : Iterable, validator : Validator) -> None:
         super().__init__(obj)
         self.validator = validator
@@ -241,7 +238,7 @@ class IterableProxy(Proxy):
             pass
 
 
-class CallableProxy(Proxy):
+class CallableProxy(ProxyMixin, collections.abc.Callable):
     def __init__(self, obj : Callable, vargs: Optional[List[Validator]]=None, vret: Optional[Validator]=None):
         super().__init__(obj)
         self.signature = signature(self.obj)
@@ -278,15 +275,6 @@ class CallableProxy(Proxy):
         # Return the result
         return ret
 
-
-    def __contains__(self, item):
-        return item in self.obj
-
-    def __hash__(self):
-        return hash(self.obj)
-
-    def __len__(self):
-        return len(self.obj)
 
 
 class IteratorValidator(Validator):
