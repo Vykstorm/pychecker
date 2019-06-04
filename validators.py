@@ -2,7 +2,6 @@
 
 
 
-
 '''
 This script defines all validators used to check function arguments &
 return values.
@@ -218,6 +217,16 @@ class TypeValidator(Validator):
             return types[0].__name__
         return ', '.join(map(attrgetter('__name__'), types[:-1])) + ' or ' + types[-1].__name__
 
+
+class NoneValidator(Validator):
+    '''
+    Validator that checks if the given argument is the value None
+    '''
+    def validate(self, value) -> Generator:
+        if value is not None:
+            yield False
+            raise Exception('? must be None but got {} instead'.format(type(value).__name__))
+        yield True
 
 
 

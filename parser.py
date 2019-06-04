@@ -3,7 +3,7 @@
 import typing
 import collections.abc
 from typing import *
-from validators import Validator, TypeValidator, IteratorValidator, IterableValidator, EmptyValidator
+from validators import *
 from inspect import isclass
 
 
@@ -58,7 +58,15 @@ def parse_annotation(x) -> Validator:
 
     Iterator[int] -> IteratorValidator(TypeValidator([int]))
 
+
+    - If input is None, returns NoneValidator
+
+
     '''
+
+    # None validator
+    if x is None:
+        return NoneValidator()
 
     # Type hints using collections.abc or typing modules
     if is_type_hint(x):
