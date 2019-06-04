@@ -313,7 +313,7 @@ class CallableProxy(ProxyMixin, collections.abc.Callable):
             for k, validator, param, arg in zip(count(), self.vargs, bounded.arguments.keys(), args):
                 valid, value = validator(arg)
                 if not valid:
-                    raise ValidationError('? callable expected {} on param \'{}\' but got {}'.format(
+                    raise ValidationError('? callable expected {} on param {} but got {}'.format(
                         validator.brief(), param, type(arg).__name__
                     ))
                 args[k] = value
@@ -327,7 +327,7 @@ class CallableProxy(ProxyMixin, collections.abc.Callable):
             valid, value = validator(ret)
             if not valid:
                 raise ValidationError('Expected {} return value calling to ? but got {}'.format(
-                    self.vret.brief(), type(ret).__name__
+                    self.vret.brief(), type(ret).__name__ if ret is not None else str(None)
                 ))
 
         # Return the result
@@ -447,7 +447,7 @@ class CallableValidator(Validator):
                     # Check number of parameters in the callable signature matches correctly
                     if len(params) != len(self.args):
                         yield False
-                        raise Exception('? expected {} argument{} but got {}'.format(
+                        raise Exception('? must take {} parameter{} but has {}'.format(
                             len(self.args), 's' if len(self.args) != 1 else '', len(params)))
 
                 if self.ret is not None:

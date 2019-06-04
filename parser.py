@@ -72,8 +72,8 @@ def parse_annotation(x) -> Validator:
     if x is None:
         return NoneValidator()
 
-    # Explicit empty validator
-    if x == Any:
+    # Explicit empty validator if 'Any' or ... specified
+    if x is Any or x is Ellipsis:
         return EmptyValidator()
 
     # Type hints using collections.abc or typing modules
@@ -93,11 +93,11 @@ def parse_annotation(x) -> Validator:
 
         # Callable
         if kind == collections.abc.Callable:
-            pass
+            return CallableValidator(args[:-1], args[-1])
 
         # TODO
         # ...
-        raise TypeError()
+        raise NotImplementedError()
 
     if isclass(x):
         # Regular type validator
