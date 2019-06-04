@@ -61,12 +61,20 @@ def parse_annotation(x) -> Validator:
 
     - If input is None, returns NoneValidator
 
+    - If input is a callable and none of the previous conditions are satisfied, its assumed
+    to be a custom validator (Returns CustomValidator)
+
+    lambda x: x > 0  -> CustomValidator(lambda x: x > 0)
 
     '''
 
     # None validator
     if x is None:
         return NoneValidator()
+
+    # Explicit empty validator
+    if x == Any:
+        return EmptyValidator()
 
     # Type hints using collections.abc or typing modules
     if is_type_hint(x):
@@ -91,15 +99,16 @@ def parse_annotation(x) -> Validator:
         # ...
         raise TypeError()
 
-
     if isclass(x):
         # Regular type validator
         return TypeValidator([x])
 
-    if isinstance(x, collections.abc.Iterable):
+    if isinstance(x, collections.abc.Iterable) and all(map(isclass, x)):
         # Type validator but multiple types indicated
-        if all(map(isclass, x)):
-            return TypeValidator(x)
-        raise TypeError()
+        return TypeValidator(x)
+
+    if callable(x):
+        # User validator
+        return UserValidator(x)
 
     return EmptyValidator()

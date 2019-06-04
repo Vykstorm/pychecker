@@ -140,7 +140,11 @@ class Validator:
                 raise ValidationError(default_msg)
             return False, default_msg
 
-        valid = next(result)
+        try:
+            valid = next(result)
+        except StopIteration:
+            # TODO
+            raise TypeError('')
 
         if valid:
             try:
@@ -227,6 +231,26 @@ class NoneValidator(Validator):
             yield False
             raise Exception('? must be None but got {} instead'.format(type(value).__name__))
         yield True
+
+
+class UserValidator(Validator):
+    '''
+    Validator defined by the user (using a callback function)
+    '''
+    def __init__(self, func : Callable) -> None:
+        '''
+        Constructor.
+        :param func: Must be a callable object that implements the validator interface
+        describe at the heading of this file.
+        '''
+        super().__init__()
+        self.func = func
+
+    def validate(self, value) -> Union[bool, Iterator]:
+        result = self.func(value)
+        if not isinstance(result, (bool, Iterator)):
+            raise ValueError('Custom validator must return a boolean value or an iterator')
+        return result
 
 
 
