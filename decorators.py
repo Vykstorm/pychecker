@@ -98,34 +98,26 @@ def build_wrapper(func, *args, **kwargs):
     # Validated function definition
     @wraps(func)
     def wrapper(*args, **kwargs):
-        try:
-            # Bind arguments like if we call to the wrapped function
-            bounded = sig.bind(*args, **kwargs)
-            # Apply function default values
-            bounded.apply_defaults()
-            # Get bounded args
-            args = list(bounded.args)
+        # Bind arguments like if we call to the wrapped function
+        bounded = sig.bind(*args, **kwargs)
 
-            # Validate each argument
-            try:
-                for k, param, arg, validator in zip(count(), sig.parameters.keys(), args, param_validators):
-                    valid, args[k] = validator(arg, throw_error=True)
-            except ValidationError as e:
-                raise ValidationError(e.msg.replace('?', param))
+        # Apply function default values
+        bounded.apply_defaults()
 
+        # Get bounded args
+        args = list(bounded.args)
 
-            # Now call the wrapped function
-            result = func(*args)
+        # Validate each argument
+        for k, param, arg, validator in zip(count(), sig.parameters.keys(), args, param_validators):
+            args[k] = validator.validate(arg, context=dict(func=func.__name__, param=param))
 
-            # Finally validate the function return value
-            try:
-                valid, result = ret_validator(result, throw_error=True)
-            except ValidationError as e:
-                raise ValidationError(e.msg.replace('?', 'return value'))
+        # Now call the wrapped function
+        result = func(*args)
 
-            # Return the final output
-            return result
-        except ValidationError as e:
-            raise ValidationError('{} (at function {})'.format(e.msg, func.__name__))
+        # Finally validate the return value
+        result = ret_validator.validate(result, context=dict(func=func.__name__, param='return value'))
+
+        # Return the final output
+        return result
 
     return wrapper

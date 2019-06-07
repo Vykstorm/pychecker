@@ -40,41 +40,16 @@ def get_type_hint_info(x) -> Tuple[Any, Tuple]:
 
 def parse_annotation(x) -> Validator:
     '''
-    This method will turn a type annotation into a validator.
-
-    - If the input is a basic type like int, float, str, ... a custom
-    class defined by the user or an iterable of classes (list, tuple, ...), like
-    (int, float), a TypeValidator is returned:
-
-    int -> TypeValidator([int])
-    (int, float) -> TypeValidator([int, float])
-
-    - If input is the Iterator keyword, returns a IteratorValidator
-
-    Iterator -> IteratorValidator()
-
-    Also if its a expression of the form Iterator[expr], returns an IteratorValidator
-    of the form IteratorValidator(parse(expr))
-
-    Iterator[int] -> IteratorValidator(TypeValidator([int]))
-
-
-    - If input is None, returns NoneValidator
-
-    - If input is a callable and none of the previous conditions are satisfied, its assumed
-    to be a custom validator (Returns CustomValidator)
-
-    lambda x: x > 0  -> CustomValidator(lambda x: x > 0)
-
+    Transform type annotation to validator
     '''
 
     # None validator
     if x in (None, type(None)) or (isinstance(x, collections.abc.Iterable) and (tuple(x) == (None), tuple(x) == (type(None)))):
         return NoneValidator()
 
-    # Explicit empty validator if 'Any' or ... specified
+    # Any validator if 'Any' or ... specified
     if x is Any or x is Ellipsis:
-        return EmptyValidator()
+        return AnyValidator()
 
     # Type hints using collections.abc or typing modules
     if is_type_hint(x):
@@ -118,4 +93,5 @@ def parse_annotation(x) -> Validator:
         # User validator
         return UserValidator(x)
 
-    return EmptyValidator()
+    # Default validator
+    return AnyValidator()
