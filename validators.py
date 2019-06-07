@@ -81,7 +81,6 @@ class Validator:
 
 
 
-@singleton
 class AnyValidator(Validator):
     '''
     Type of validator that matches any value
@@ -96,7 +95,6 @@ class AnyValidator(Validator):
         return 'any'
 
 
-@singleton
 class NoneValidator(Validator):
     '''
     Kind of validator which only accepts the None value.
