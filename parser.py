@@ -82,6 +82,10 @@ def parse_annotation(x) -> Validator:
         raise NotImplementedError()
 
     if isclass(x):
+        # Validator subclass
+        if issubclass(x, Validator):
+            return x()
+
         # Regular type validator
         return TypeValidator([x])
 
