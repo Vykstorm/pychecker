@@ -29,11 +29,11 @@ class ValidationError(Exception):
     "x is not valid: Must be a valid directory path (at function qux)"
     '''
 
-    def __init__(self, func: Callable, param: str,
+    def __init__(self, func: Optional[str]=None, param: Optional[str]=None,
     expected: Optional[str]=None, got: Optional[str]=None, details: Optional[str]=None) -> None:
         assert got is None or expected is not None
 
-        msg = param
+        msg = param if param is not None else '?'
         if expected is None and got is None:
             msg += ' is not valid'
         else:
@@ -45,6 +45,6 @@ class ValidationError(Exception):
         if details is not None:
             msg += ': ' + details
 
-        msg += ' (at function ' + func.__name__ + ')'
+        msg += ' (at function ' + (func if func is not None else '?') + ')'
 
         super().__init__(msg)
