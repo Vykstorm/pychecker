@@ -51,6 +51,10 @@ def parse_annotation(x) -> Validator:
     if x is Any or x is Ellipsis:
         return AnyValidator()
 
+    # Validator instances
+    if isinstance(x, Validator):
+        return x
+
     # Type hints using collections.abc or typing modules
     if is_type_hint(x):
         kind, args = get_type_hint_info(x)
