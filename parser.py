@@ -44,7 +44,7 @@ def parse_annotation(x) -> Validator:
     '''
 
     # None validator
-    if x in (None, type(None)) or (isinstance(x, collections.abc.Iterable) and (tuple(x) == (None), tuple(x) == (type(None)))):
+    if x in (None, type(None)) or (isinstance(x, collections.abc.Iterable) and (tuple(x) == (None) or tuple(x) == (type(None)))):
         return NoneValidator()
 
     # Any validator if 'Any' or ... specified
