@@ -2,125 +2,293 @@
 
 import unittest
 from unittest import TestCase
+from collections.abc import *
 from validators import *
+from errors import *
 from itertools import *
 from inspect import *
-from typing import *
 
+# Different random values of any kind of types
+values = [
+    'foo', b'bar', 10, None, 1.5,
+    [1, 2, 3], (1, 2, 3), set([4, 5, 6]), frozenset([7, 8, 9]),
+    complex(1, 2), False, True, {'a':1, 'b':2, 'c':3}
+]
+
+# Set of random validators
+validators = [
+    AnyValidator(), NoneValidator(),
+    TypeValidator([int]), TypeValidator([bool]), TypeValidator([float, str]),
+    UserValidator(lambda x: isinstance(x, int) and x in range(0, 100))
+]
 
 class TestValidators(TestCase):
     '''
     Set of tests to check validators
     '''
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        # Some random values of different kind
-        class Foo:
-            pass
-        self.values = (
-            'foo', b'bar', 10, None, 1.5,
-            [1, 2, 3], (1, 2, 3), set([4, 5, 6]), frozenset([7, 8, 9]),
-            complex(1, 2), False, True, {'a':1, 'b':2, 'c':3},
-            Foo()
-        )
-
-    def test_empty_validator(self):
+    def test_call_return_value(self):
         '''
-        Check EmptyValidator
+        Check that all validator instances return a boolean value, None or a
+        generator when calling to its __call__ method
         '''
-        v = EmptyValidator()
-        for x in self.values:
-            valid, y = v(x)
-            self.assertTrue(valid)
-            self.assertEqual(x, y)
+        for validator, value in product(validators, values):
+            self.assertIsInstance(validator(value), (bool, Generator, type(None)))
 
 
-    def test_type_validator(self):
+    def test_call_return_value_None(self):
         '''
-        Check type validator
+        Check that if validator __call__ method return the value None or True,
+        validate() will not raise any exception passing the same argument
+
+        '''
+        class Foo(Validator):
+            def __call__(self, value):
+                pass
+
+        foo = Foo()
+
+        try:
+            for value in values:
+                foo.validate(value)
+        except:
+            self.fail('validate() must not raise any exception if __call__ returns None')
+
+
+    def test_call_return_value_False(self):
+        '''
+        Check that if validator __call__ method return the value False or a generator
+        that returns the value False as the first item,
+        validate() will raise an exception passing the same argument (A validation error
+        exception)
+        '''
+        class Foo(Validator):
+            def __call__(self, value):
+                return False
+
+        class Bar(Validator):
+            def __call__(self, value):
+                yield False
+
+        foo, bar = Foo(), Bar()
+
+        for value in values:
+            self.assertRaises(ValidationError, foo.validate, value)
+            self.assertRaises(ValidationError, bar.validate, value)
+
+
+    def test_call_return_value_True(self):
+        '''
+        Test that if __call__ method returns the value True or a generator that returns
+        True as the first item, validate() will not raise any exception
+        '''
+        class Foo(Validator):
+            def __call__(self, value):
+                return True
+
+        class Bar(Validator):
+            def __call__(self, value):
+                yield True
+
+        foo, bar = Foo(), Bar()
+
+        try:
+            for value in values:
+                foo.validate(value)
+        except ValidationError:
+            self.fail('validate() must not raise an exception if __call__ returns True')
+
+
+
+    def test_call_return_value_empty_generator(self):
+        '''
+        If __call__ returns an empty generator, is assumed that the input argument is valid,
+        thus, validate() will not raise any exception passing it the same same argument
         '''
 
-        # Test with only one type arg
-        for x in self.values:
-            v = TypeValidator([type(x)], check_subclasses=False)
-            self.assertTrue(v(x)[0])
+        class Foo(Validator):
+            def __call__(self, value):
+                if value is not None:
+                    yield True
 
-            for y in self.values:
-                if x != y and type(x) != type(y):
-                    self.assertFalse(v(y)[0])
+        foo = Foo()
 
-        # Test check_subclasses arg
-        v = TypeValidator([int], check_subclasses=True)
-        self.assertTrue(v(False)[0])
-        v = TypeValidator([int], check_subclasses=False)
-        self.assertFalse(v(True)[0])
+        try:
+            foo.validate(None)
+        except ValidationError:
+            self.fail('validate() must not raise an exception if __call__ returns an exhausted generator')
 
-        #  Test with more than one arg
-        v = TypeValidator(list(map(type, self.values)))
-        for x in self.values:
-            self.assertTrue(v(x)[0])
+
+
+    def test_validate_return_value(self):
+        '''
+        validate(x) will return the argument itself (if the argument is valid) or a proxy
+        that implements the same interface (Iterable, Callable, ...):
+
+        - if __call__(x) returns an exhausted generator, validate(x) returns x
+        - if __call__(x) returns a generator that only returns the value True, validate(x) returns x
+        - if __call__(x) returns None or True, validate(x) will also return x
+        '''
+
+        class Foo(Validator):
+            def __call__(self, value):
+                return True
+
+        class Bar(Validator):
+            def __call__(self, value):
+                return None
+
+        class Qux(Validator):
+            def __call__(self, value):
+                yield True
+
+        class Baz(Validator):
+            def __call__(self, value):
+                if self is None:
+                    yield True
+
+
+        for validator, value in product([Foo(), Bar(), Qux(), Baz()], values):
+            result = validator.validate(value)
+            self.assertIs(result, value)
+
+
+        for validator, value in product(validators, values):
+            try:
+                result = validator.validate(value)
+                if value is not result:
+                    for cls in collections.abc:
+                        if not isclass(cls) or not isinstance(value, cls):
+                            continue
+                        self.assertIsInstance(result, cls)
+
+            except ValidationError:
+                pass
+
+
+
+    def test_context(self):
+        '''
+        If __call__ returns a generator, the first time it returns an item via yield,
+        it receives a dictionary value (sent via send() using Generator API).
+
+        New entries can be passed when calling validate() method using the 'context' parameter
+        '''
+
+        tester = self
+        class Foo(Validator):
+            def __call__(self, value):
+                context = yield True
+                tester.assertIsInstance(context, dict)
+                tester.assertIn('param', context)
+
+        class Bar(Validator):
+            def __call__(self, value):
+                context = yield False
+                tester.assertIsInstance(context, dict)
+                tester.assertIn('param', context)
+
+        for validator, value in product([Foo(), Bar()], values):
+            try:
+                validator.validate(value, context={'param': 'qux'})
+            except ValidationError:
+                pass
+
+
+    def test_any_validator(self):
+        '''
+        AnyValidator matches any kind of validator. validate(x) will never raise
+        an exception. Also, validate(x) will return always x
+        '''
+
+        validator = AnyValidator()
+        try:
+            for value in values:
+                result = validator.validate(value)
+                self.assertIs(result, value)
+        except ValidationError:
+            self.fail('AnyValidator must match any kind of argument value')
 
 
     def test_none_validator(self):
         '''
-        Test NoneValidator
+        NoneValidator only matches the value None. validate(x) will raise an
+        exception if x is not None.
         '''
-        v = NoneValidator()
-        for x in self.values:
-            if x is not None:
-                self.assertFalse(v(x)[0])
-        self.assertTrue(v(None)[0])
+
+        validator = NoneValidator()
+
+        for value in values:
+            if value is not None:
+                self.assertRaises(ValidationError, validator.validate, value)
+
+        try:
+            result = validator.validate(None)
+            self.assertIs(result, None)
+        except ValidationError:
+            self.fail('NoneValidator must match the None value')
+
+
+    def test_type_validator_match(self):
+        '''
+        Check TypeValidator works properly
+        '''
+        for a in values:
+            try:
+                TypeValidator([type(a)], check_subclasses=False).validate(a)
+                TypeValidator([type(a)], check_subclasses=True).validate(a)
+            except ValidationError:
+                self.fail()
+
+            for b in values:
+                if type(a) != type(b):
+                    self.assertRaises(
+                        ValidationError,
+                        TypeValidator([type(a)], check_subclasses=False).validate,
+                        b)
+
+        all_types = frozenset([type(value) for value in values])
+        for value in values:
+            try:
+                TypeValidator(all_types, check_subclasses=False).validate(value)
+                TypeValidator(all_types, check_subclasses=True).validate(value)
+            except ValidationError:
+                self.fail()
+
+        class Foo:
+            pass
+
+        class Bar(Foo):
+            pass
+
+        try:
+            TypeValidator([Foo]).validate(Foo())
+            TypeValidator([Foo], check_subclasses=True).validate(Bar())
+        except ValidationError:
+            self.fail()
+
+        self.assertRaises(ValidationError, TypeValidator([Foo], check_subclasses=False).validate, Bar())
 
 
     def test_user_validator(self):
         '''
-        Test UserValidator
+        Check UserValidator works properly
         '''
 
-        # True/False user validator
-        v = UserValidator(lambda x: x >= 0)
-        self.assertTrue(v(1)[0])
-        self.assertFalse(v(-1)[0])
+        for v in validators:
+            validator = UserValidator(v.__call__)
+            for value in values:
+                try:
+                    validator.validate(value)
+                    try:
+                        v.validate(value)
+                    except ValidationError:
+                        self.fail()
 
-        # Generator-like user validator
-        def foo(value):
-            if value < 0:
-                yield False
-                raise Exception()
-            yield True
-        v = UserValidator(foo)
-        self.assertTrue(v(1)[0])
-        self.assertFalse(v(-1)[0])
+                except ValidationError:
+                    self.assertRaises(ValidationError, v.validate, value)
 
 
-    def test_optional_validator(self):
-        '''
-        Test OptionalValidator
-        '''
-
-        v = OptionalValidator(TypeValidator([int]))
-        self.assertTrue(v(1)[0])
-        self.assertTrue(v(None)[0])
-        self.assertFalse(v('foo')[0])
-
-
-    def test_iterator_validator(self):
-        '''
-        Test IteratorValidator
-        '''
-        # TODO
-        pass
-
-    def test_iterable_validator(self):
-        # TODO
-        pass
-
-
-    def test_callable_validator(self):
-        # TODO
-        pass
+    
 
 if __name__ == '__main__':
     unittest.main()
