@@ -1,9 +1,9 @@
 
 
 from typing import *
-from functools import lru_cache, wraps, update_wrapper
+from functools import lru_cache, wraps, update_wrapper, partial
 from itertools import count
-from inspect import signature
+from inspect import signature, Parameter, Signature
 from parser import parse_annotation
 
 from errors import ValidationError
@@ -31,15 +31,6 @@ class checked:
     @checked
     def foo(x : int, y : int) -> float:
         return x / y
-
-    You can also tune some variables to change how validation is done in your function
-    e.g:
-    @checked(ondemand=False)
-    def foo(x : Iterable[int]) -> int:
-        s = 0
-        for item in x:
-            s += item
-        return s
     '''
     def __init__(self, *args, **kwargs):
         self.func = args[0] if len(args) == 1 and callable(args[0]) else None
@@ -69,30 +60,94 @@ class checked:
         return build_wrapper(self.func, *self.args, **self.kwargs)
 
 
+
+
+
+
+
+class SignatureMixin:
+    '''
+    Helper class that provides additional helper methods over inspect.Signature
+    class to parse function annotations to validators
+    '''
+    def __init__(self, sig):
+        self.sig = sig
+
+    def __getattr__(self, key):
+        return getattr(self.sig, key)
+
+    def __str__(self):
+        return str(self.sig)
+
+    def __repr__(self):
+        return repr(self.sig)
+
+
+    @property
+    @lru_cache(maxsize=1)
+    def varargs_param(self):
+        # Return the parameter in the signature which is of type *args
+        # or None if *args is not in the signature
+        for param in self.parameters.values():
+            if param.kind == Parameter.VAR_POSITIONAL:
+                return param
+        return None
+
+    @property
+    @lru_cache(maxsize=1)
+    def varkwargs_param(self):
+        # Return the parameter in the signature which is of type **kwargs
+        # or None if **kwargs is not in the signature
+        for param in self.parameters.values():
+            if param.kind == Parameter.VAR_KEYWORD:
+                return param
+        return None
+
+
+    @property
+    def validators(self):
+        '''
+        Parse signature annotations to validators
+        Return a tuple of two items:
+        - A dictionary that maps parameter names to validators
+        - Validator obtained parsing function return annotation
+        '''
+
+        # Get param validators
+        def get_param_validators():
+            for param in self.parameters.values():
+                yield parse_annotation(
+                    Any if param.annotation is Parameter.empty else param.annotation
+                )
+        param_validators = dict(zip(self.parameters.keys(), get_param_validators()))
+
+        # Get return validator
+        ret_validator = parse_annotation(
+                Any if self.return_annotation is Parameter.empty else self.return_annotation
+            )
+
+        return param_validators, ret_validator
+
+
+
+
 def build_wrapper(func, *args, **kwargs):
     if len(args) > 0:
         raise ValueError('Positional arguments are not allowed in @checked decorator. '+
                          'Use keyword arguments instead')
-    # Change validation settings
+
+    # Configure wrapper
     options = kwargs
 
-    # Get function annotations & signature
-    annotations = func.__annotations__
-    sig = signature(func)
+    # Get function signature
+    sig = SignatureMixin(signature(func))
 
-    # Replace default values with "Any" validator
-    s = sig.replace(parameters=[param.replace(default=parse_annotation(Any)) for key, param in sig.parameters.items()])
+    # No varadic keyword parameter annotations allowed
+    if sig.varkwargs_param is not None and sig.varkwargs_param.annotation is not Signature.empty:
+        raise ValueError('Varadic keyword parameter annotations are not allowed')
 
-    # Parse param annotations to validators and bound them to the function signature
-    bounded = s.bind_partial(
-        **dict([(key, parse_annotation(annot)) for key, annot in annotations.items() if key != 'return'])
-    )
-    bounded.apply_defaults()
-
-    param_validators = bounded.args
-
-    # Also parse the return value annotation into a validator
-    ret_validator = parse_annotation(annotations['return'] if 'return' in annotations else Any)
+    # Turn annotations into validators
+    param_validators, return_validator = sig.validators
 
 
     # Validated function definition
@@ -104,18 +159,36 @@ def build_wrapper(func, *args, **kwargs):
         # Apply function default values
         bounded.apply_defaults()
 
-        # Get bounded args
-        args = list(bounded.args)
-
         # Validate each argument
-        for k, param, arg, validator in zip(count(), sig.parameters.keys(), args, param_validators):
-            args[k] = validator.validate(arg, context=dict(func=func.__name__, param=param))
+        args = []
+        varargs = []
+        varkwargs = bounded.kwargs
+
+        for key, value in bounded.arguments.items():
+            context = {'func': func.__name__, 'param': key}
+            param = sig.parameters[key]
+
+            if param.kind == Parameter.VAR_KEYWORD:
+                # **kwargs
+                continue
+            if param.kind == Parameter.VAR_POSITIONAL:
+                # *args
+                if key in param_validators:
+                    validate = partial(param_validators[key].validate, context={'func': func.__name__, 'param': 'items on *{}'.format(key)})
+                    varargs.extend(map(validate, value))
+                else:
+                    # *args items will not be validated
+                    varargs.extend(value)
+            else:
+                # Regular argument
+                validate = partial(param_validators[key].validate, context={'func': func.__name__, 'param': key})
+                args.append(validate(value))
 
         # Now call the wrapped function
-        result = func(*args)
+        result = func(*(args + varargs), **kwargs)
 
         # Finally validate the return value
-        result = ret_validator.validate(result, context=dict(func=func.__name__, param='return value'))
+        result = return_validator.validate(result, context={'func': func.__name__, 'param': 'return value'})
 
         # Return the final output
         return result
