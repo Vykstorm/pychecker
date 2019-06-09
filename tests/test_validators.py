@@ -288,7 +288,27 @@ class TestValidators(TestCase):
                     self.assertRaises(ValidationError, v.validate, value)
 
 
-    
+    def test_iterator_validator(self):
+        '''
+        Test for IteratorValidator class
+        '''
+
+        for value in values:
+            self.assertRaises(ValidationError, IteratorValidator().validate, value)
+
+            if isinstance(value, collections.abc.Iterable):
+                validator = IteratorValidator()
+                proxy = validator.validate(iter(value))
+                self.assertEqual(list(proxy), list(value))
+
+                validator = IteratorValidator([TypeValidator(map(type, value))])
+                proxy = validator.validate(iter(value))
+                self.assertEqual(list(proxy), list(value))
+
+        validator = IteratorValidator([TypeValidator([int])])
+        self.assertRaises(ValidationError, validator.validate, [1, 2, 3.4])
+
+
 
 if __name__ == '__main__':
     unittest.main()

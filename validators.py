@@ -169,7 +169,7 @@ class UserValidator(Validator):
         '''
         Constructor.
         :param func: Must be a callable object that implements the validator interface
-        described above
+        described above.
         '''
         super().__init__()
         self.func = func
@@ -186,3 +186,58 @@ class UserValidator(Validator):
 
     def error(self, value, **kwargs):
         return ValidationError(details='{} returned False'.format(self.func.__name__), **kwargs)
+
+
+
+class TreeValidator(Validator):
+    '''
+    Base class for IteratorValidator, IterableValidator, and more...
+    Represents a node in a tree structure (where each node its also a validator)
+    '''
+    def __init__(self, children: Iterable[Validator]=[]):
+        self.children = list(children)
+
+
+
+class IteratorValidator(TreeValidator):
+    '''
+    Validator that checks the given argument is an iterator
+    '''
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        assert len(self.children) <= 1
+
+
+    def __call__(self, value):
+        if not isinstance(value, collections.abc.Iterator):
+            # Not an iterator
+            yield False
+            return
+
+        context = yield True
+
+        if len(self.children) == 0:
+            # No proxy needed
+            return
+
+        # Return proxy
+        validator = self
+        item_validator = self.children[0]
+        class Proxy(collections.abc.Iterator):
+            def __next__(self):
+                item = next(value)
+                try:
+                    return item_validator.validate(item)
+                except ValidationError:
+                    raise validator.error(
+                        value,
+                        details='{} value found while iterating'.format(type(item).__name__ if item is not None else None),
+                        **context
+                    )
+
+        yield Proxy()
+
+
+    @property
+    def niddle(self):
+        return 'an iterable' + ('' if len(self.children) == 0 else ' of ' + self.children[0].niddle)

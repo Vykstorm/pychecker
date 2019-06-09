@@ -64,15 +64,15 @@ def parse_annotation(x) -> Validator:
 
         # Iterator
         if kind == collections.abc.Iterator:
-            return IteratorValidator(*args)
+            return IteratorValidator(args)
 
         # Iterable
         if kind == collections.abc.Iterable:
-            return IterableValidator(*args)
+            return IterableValidator(args)
 
         # Callable
         if kind == collections.abc.Callable:
-            return CallableValidator(args[:-1], args[-1])
+            return CallableValidator(args)
 
         # Union
         if kind == Union:

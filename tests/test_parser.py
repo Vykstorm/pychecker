@@ -76,6 +76,15 @@ class TestParser(TestCase):
         self.assertEqual(tuple(validator.types), tuple(types))
 
 
+    def test_parse_Iterator(self):
+        '''
+        typing.Iterator and collections.abc.Iterator are parsed to an IteratorValidator
+        '''
+        self.assertIsInstance(parse(collections.abc.Iterator), IteratorValidator)
+        self.assertIsInstance(parse(Iterator), IteratorValidator)
+        self.assertIsInstance(parse(Iterator[int]), IteratorValidator)
+        self.assertIsInstance(parse(Iterator[Iterator[int]]), IteratorValidator)
+
 
 if __name__ == '__main__':
     unittest.main()
