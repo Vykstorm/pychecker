@@ -5,6 +5,7 @@ from functools import lru_cache, wraps, update_wrapper, partial
 from itertools import count
 from inspect import signature, Parameter, Signature
 from parser import parse_annotation
+import types
 
 from errors import ValidationError
 
@@ -35,8 +36,6 @@ class checked:
     def __init__(self, *args, **kwargs):
         self.func = args[0] if len(args) == 1 and callable(args[0]) else None
         self.args, self.kwargs = (args, kwargs) if self.func is None else ((), {})
-        if self.func is not None:
-            update_wrapper(self, self.func)
 
     def __call__(self, *args, **kwargs):
         if self.func is None:
@@ -47,11 +46,23 @@ class checked:
             return self._wrapper
         return self._wrapper(*args, **kwargs)
 
+    def __get__(self, obj, objtype=None):
+        return self._wrapper.__get__(obj, objtype)
+
+    def __getattribute__(self, key):
+        try:
+            if not key in ['__doc__']:
+                return object.__getattribute__(self, key)
+            raise AttributeError()
+        except:
+            return getattr(object.__getattribute__(self, '_wrapper'), key)
+
     def __str__(self):
-        return str(self._wrapper) if self.func is not None else super().__str__()
+        return str(self._wrapper)
 
     def __repr__(self):
-        return repr(self._wrapper) if self.func is not None else super().__repr__()
+        return repr(self._wrapper)
+
 
     @property
     @lru_cache(maxsize=1)
@@ -63,25 +74,17 @@ class checked:
 
 
 
-
-
 class SignatureMixin:
     '''
     Helper class that provides additional helper methods over inspect.Signature
-    class to parse function annotations to validators
+    class to parse function annotations to validators (used to build wrappers
+    around decorated functions)
     '''
     def __init__(self, sig):
         self.sig = sig
 
     def __getattr__(self, key):
         return getattr(self.sig, key)
-
-    def __str__(self):
-        return str(self.sig)
-
-    def __repr__(self):
-        return repr(self.sig)
-
 
     @property
     @lru_cache(maxsize=1)
@@ -132,6 +135,10 @@ class SignatureMixin:
 
 
 def build_wrapper(func, *args, **kwargs):
+    '''
+    Builds a wrapper around the given function to add validation features.
+    '''
+
     if len(args) > 0:
         raise ValueError('Positional arguments are not allowed in @checked decorator. '+
                          'Use keyword arguments instead')
@@ -149,48 +156,63 @@ def build_wrapper(func, *args, **kwargs):
     # Turn annotations into validators
     param_validators, return_validator = sig.validators
 
+    # The wrapper will be an instance of this class
+    class Wrapper:
+        def __get__(self, obj, objtype):
+            if obj is None:
+                return self
+            return types.MethodType(self, obj)
 
-    # Validated function definition
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        # Bind arguments like if we call to the wrapped function
-        bounded = sig.bind(*args, **kwargs)
+        def __str__(self):
+            return str(func)
 
-        # Apply function default values
-        bounded.apply_defaults()
+        def __repr__(self):
+            return repr(func)
 
-        # Validate each argument
-        args = []
-        varargs = []
-        varkwargs = bounded.kwargs
+        def __call__(self, *args, **kwargs):
+            # Bind arguments like if we call to the wrapped function
+            bounded = sig.bind(*args, **kwargs)
 
-        for key, value in bounded.arguments.items():
-            context = {'func': func.__name__, 'param': key}
-            param = sig.parameters[key]
+            # Apply function default values
+            bounded.apply_defaults()
 
-            if param.kind == Parameter.VAR_KEYWORD:
-                # **kwargs
-                continue
-            if param.kind == Parameter.VAR_POSITIONAL:
-                # *args
-                if key in param_validators:
-                    validate = partial(param_validators[key].validate, context={'func': func.__name__, 'param': 'items on *{}'.format(key)})
-                    varargs.extend(map(validate, value))
+            # Validate each argument
+            args = []
+            varargs = []
+            varkwargs = bounded.kwargs
+
+            for key, value in bounded.arguments.items():
+                param = sig.parameters[key]
+
+                if param.kind == Parameter.VAR_KEYWORD:
+                    # **kwargs
+                    continue
+                if param.kind == Parameter.VAR_POSITIONAL:
+                    # *args
+                    if key in param_validators:
+                        validate = partial(param_validators[key].validate, context={'func': func.__name__, 'param': 'items on *{}'.format(key)})
+                        varargs.extend(map(validate, value))
+                    else:
+                        # *args items will not be validated
+                        varargs.extend(value)
                 else:
-                    # *args items will not be validated
-                    varargs.extend(value)
-            else:
-                # Regular argument
-                validate = partial(param_validators[key].validate, context={'func': func.__name__, 'param': key})
-                args.append(validate(value))
+                    # Regular argument
+                    validate = partial(param_validators[key].validate, context={'func': func.__name__, 'param': key})
+                    args.append(validate(value))
 
-        # Now call the wrapped function
-        result = func(*(args + varargs), **kwargs)
+            # Now call the wrapped function
+            result = func(*(args + varargs), **kwargs)
 
-        # Finally validate the return value
-        result = return_validator.validate(result, context={'func': func.__name__, 'param': 'return value'})
+            # Finally validate the return value
+            result = return_validator.validate(result, context={'func': func.__name__, 'param': 'return value'})
 
-        # Return the final output
-        return result
+            # Return the final output
+            return result
+
+    # Instantiate the wrapper
+    wrapper = Wrapper()
+
+    # Update wrapper properties
+    update_wrapper(wrapper, func)
 
     return wrapper
