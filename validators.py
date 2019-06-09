@@ -240,4 +240,4 @@ class IteratorValidator(TreeValidator):
 
     @property
     def niddle(self):
-        return 'an iterable' + ('' if len(self.children) == 0 else ' of ' + self.children[0].niddle)
+        return 'an iterator' + ('' if len(self.children) == 0 else ' of ' + self.children[0].niddle)
