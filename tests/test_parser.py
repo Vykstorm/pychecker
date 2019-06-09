@@ -86,5 +86,15 @@ class TestParser(TestCase):
         self.assertIsInstance(parse(Iterator[Iterator[int]]), IteratorValidator)
 
 
+    def test_parse_Iterable(self):
+        '''
+        typing.Iterable and collections.abc.Iterable are parse to an IterableValidator
+        '''
+        self.assertIsInstance(parse(collections.abc.Iterable), IterableValidator)
+        self.assertIsInstance(parse(Iterable), IterableValidator)
+        self.assertIsInstance(parse(Iterable[int]), IterableValidator)
+        self.assertIsInstance(parse(Iterable[Iterable[int]]), IterableValidator)
+
+
 if __name__ == '__main__':
     unittest.main()
