@@ -423,10 +423,20 @@ class OptionalValidator(TreeValidator):
         super().__init__(*args, **kwargs)
         assert self.num_children == 1
 
+
     def __call__(self, value):
         if value is None:
             return True
-        return self.children[0].test(value)
+
+        opt_validator = self.children[0]
+        valid = opt_validator.test(value)
+
+        if not valid:
+            return False
+
+        context = yield True
+        yield opt_validator.validate(value, context)
+
 
     @property
     def niddle(self):
