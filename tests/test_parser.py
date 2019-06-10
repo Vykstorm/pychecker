@@ -88,12 +88,21 @@ class TestParser(TestCase):
 
     def test_parse_Iterable(self):
         '''
-        typing.Iterable and collections.abc.Iterable are parse to an IterableValidator
+        typing.Iterable and collections.abc.Iterable are parsed to an IterableValidator
         '''
         self.assertIsInstance(parse(collections.abc.Iterable), IterableValidator)
         self.assertIsInstance(parse(Iterable), IterableValidator)
         self.assertIsInstance(parse(Iterable[int]), IterableValidator)
         self.assertIsInstance(parse(Iterable[Iterable[int]]), IterableValidator)
+
+
+    def test_parse_Callable(self):
+        '''
+        typing.Callable and collections.abc.Callable are parsed to a CallableValidator
+        '''
+        self.assertIsInstance(parse(collections.abc.Callable), CallableValidator)
+        self.assertIsInstance(parse(Callable), CallableValidator)
+        self.assertIsInstance(parse(Callable[[int, float, str], Any]), CallableValidator)
 
 
 if __name__ == '__main__':

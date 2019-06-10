@@ -12,7 +12,8 @@ from inspect import *
 values = [
     'foo', b'bar', 10, None, 1.5,
     [1, 2, 3], (1, 2, 3), set([4, 5, 6]), frozenset([7, 8, 9]),
-    complex(1, 2), False, True, {'a':1, 'b':2, 'c':3}
+    complex(1, 2), False, True, {'a':1, 'b':2, 'c':3},
+    lambda x, y, z: (x, y, z), lambda x, *args, **kwargs: (x, args, kwargs)
 ]
 
 # Set of random validators
@@ -325,6 +326,43 @@ class TestValidators(TestCase):
                 self.assertEqual(list(proxy), list(value))
             else:
                 self.assertRaises(ValidationError, IterableValidator().validate, value)
+
+
+    def test_callable_validator(self):
+        '''
+        Test for CallableValidator class
+        '''
+
+        # Validator expect callable objects
+        validator = CallableValidator()
+        for value in values:
+            if callable(value):
+                validator.validate(value)
+            else:
+                self.assertRaises(ValidationError, validator.validate, value)
+
+        # Number of param validators must match the number of parameters of the callable
+        validator = CallableValidator([NoneValidator(), NoneValidator(), NoneValidator()])
+        self.assertRaises(ValidationError, validator.validate, lambda x: None)
+        self.assertRaises(ValidationError, validator.validate, lambda x, y, z: None)
+
+        # Callable input arguments are checked
+        for func in [lambda x, y: None, lambda x, y, *args: None]:
+            proxy = validator.validate(func)
+            self.assertTrue(callable(proxy))
+            proxy(None, None)
+            self.assertRaises(TypeError, proxy, None)
+            self.assertRaises((ValidationError, TypeError), proxy, None, None, None)
+            self.assertRaises(ValidationError, proxy, None, 1)
+            self.assertRaises(ValidationError, proxy, 1, None)
+
+        # Callable return values are checked
+        proxy = validator.validate(lambda x, y: None)
+        self.assertEqual(proxy(None, None), None)
+
+        proxy = validator.validate(lambda x, y: True)
+        self.assertRaises(ValidationError, proxy, None, None)
+
 
 
 if __name__ == '__main__':

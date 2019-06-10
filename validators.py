@@ -2,12 +2,12 @@
 
 from typing import *
 import collections.abc
-from inspect import signature
+from inspect import signature, Parameter
 from itertools import count, islice
 from operator import attrgetter
 from errors import ValidationError
 from utils.singleton import singleton
-
+from utils import ordinal
 
 
 class Validator:
@@ -204,6 +204,8 @@ class TreeValidator(Validator):
 
 
 
+
+
 class ProxyMixin:
     def __init__(self, validator: TreeValidator, context: Dict, target):
         self.validator, self.context, self.target = validator, context, target
@@ -216,10 +218,9 @@ class ProxyMixin:
 
 
 class IteratorProxy(collections.abc.Iterator, ProxyMixin):
-    def __init__(self, validator, *args, **kwargs):
-        assert validator.num_children == 1
-        ProxyMixin.__init__(self, validator, *args, **kwargs)
-
+    def __init__(self, *args, **kwargs):
+        ProxyMixin.__init__(self, *args, **kwargs)
+        assert self.validator.num_children == 1 and isinstance(self.target, collections.abc.Iterator)
 
     def __next__(self):
         item = next(self.target)
@@ -234,14 +235,72 @@ class IteratorProxy(collections.abc.Iterator, ProxyMixin):
 
 
 class IterableProxy(collections.abc.Iterable, ProxyMixin):
-    def __init__(self, validator, *args, **kwargs):
-        assert validator.num_children == 1
-        ProxyMixin.__init__(self, validator, *args, **kwargs)
-
+    def __init__(self, *args, **kwargs):
+        ProxyMixin.__init__(self, *args, **kwargs)
+        assert self.validator.num_children == 1 and isinstance(self.target, collections.abc.Iterable)
 
     def __iter__(self):
         return IteratorProxy(self.validator, self.context, iter(self.target))
 
+
+
+class CallableProxy(collections.abc.Callable, ProxyMixin):
+    def __init__(self, *args, **kwargs):
+        ProxyMixin.__init__(self, *args, **kwargs)
+        assert callable(self.target)
+        try:
+            self.sig = signature(self.target)
+        except:
+            # No signature avaliable
+            self.sig = None
+
+    def __call__(self, *args, **kwargs):
+        # Variables used to format error messages
+        func, param = self.context.get('func', '?'), self.context.get('param', '?')
+
+
+        if self.sig is not None:
+            # Callable signature avaliable
+
+            # Bound arguments to the callable signature
+            bounded_args = self.sig.bind(*args, **kwargs)
+            bounded_args.apply_defaults()
+            args = list(bounded_args.args)
+
+            param_validators = self.validator.children[:-1]
+            if len(args) != len(param_validators):
+                # Incorrect number of args
+                raise ValidationError(
+                    message='{} expects {} arguments but got {} instead'.format(param, len(args), len(param_validators)),
+                    func=func
+                )
+
+            # Validate each argument
+            for k, arg, validator in zip(count(), args, param_validators):
+                try:
+                    args[k] = validator.validate(arg, context={'func': func, 'param': '{} argument of {}'.format(ordinal(k+1), param)})
+                except ValidationError:
+                    raise ValidationError(
+                        message='{} argument passed to {} must be {}'.format(ordinal(k+1), param, validator.niddle),
+                        func=func
+                    )
+
+            # Invoke the callable
+            result = self.target(*args)
+        else:
+            # Callable signature not avaliable
+            result = self.target(*args, **kwargs)
+
+        # Validate the result
+        context = {'func': func, 'param': 'return value of {}'.format(param)}
+        validator = self.validator.children[-1]
+        try:
+            result = validator.validate(result, context=context)
+        except ValidationError:
+            raise ValidationError(expected=validator.niddle, **context)
+
+        # Finally return the result of the callable
+        return result
 
 
 
@@ -268,7 +327,7 @@ class IteratorValidator(TreeValidator):
 
     @property
     def niddle(self):
-        return 'an iterator' + ('' if self.num_children == 0 else ' of ' + self.children[0].niddle)
+        return 'iterator' + ('' if self.num_children == 0 else ' of ' + self.children[0].niddle)
 
 
 
@@ -294,4 +353,41 @@ class IterableValidator(TreeValidator):
 
     @property
     def niddle(self):
-        return 'an iterable' + ('' if self.num_children == 0 else ' of ' + self.children[0].niddle)
+        return 'iterable' + ('' if self.num_children == 0 else ' of ' + self.children[0].niddle)
+
+
+
+class CallableValidator(TreeValidator):
+    '''
+    Validator that checks if the given argument is a callable object of some kind
+    '''
+    def __call__(self, value):
+        if not callable(value):
+            # Not a callable object
+            return False
+
+        try:
+            sig = signature(value)
+
+            # Correct amount of parameters?
+            try:
+                if self.num_children > 0:
+                    sig.bind(*self.children[:-1])
+            except TypeError:
+                # Wrong number of parameters
+                context = yield False
+                raise self.error(value, details='Wrong number of parameters', **context)
+        except ValueError:
+            # No signature avaliable
+            pass
+
+        context = yield True
+
+        if self.num_children != 0:
+            yield CallableProxy(self, context, value)
+
+    @property
+    def niddle(self):
+        if self.num_children == 0:
+            return 'callable'
+        return 'callable({})->{}'.format(', '.join(map(attrgetter('niddle'), self.children[:-1])), self.children[-1].niddle)
