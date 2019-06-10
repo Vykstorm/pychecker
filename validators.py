@@ -198,6 +198,52 @@ class TreeValidator(Validator):
     def __init__(self, children: Iterable[Validator]=[]):
         self.children = list(children)
 
+    @property
+    def num_children(self):
+        return len(self.children)
+
+
+
+class ProxyMixin:
+    def __init__(self, validator: TreeValidator, context: Dict, target):
+        self.validator, self.context, self.target = validator, context, target
+
+    def __str__(self):
+        return str(self.target)
+
+    def __repr__(self):
+        return repr(self.target)
+
+
+class IteratorProxy(collections.abc.Iterator, ProxyMixin):
+    def __init__(self, validator, *args, **kwargs):
+        assert validator.num_children == 1
+        ProxyMixin.__init__(self, validator, *args, **kwargs)
+
+
+    def __next__(self):
+        item = next(self.target)
+        try:
+            return self.validator.children[0].validate(item)
+        except ValidationError:
+            raise self.validator.error(
+                self.target,
+                details='{} value found while iterating'.format(type(item).__name__ if item is not None else None),
+                **self.context
+            )
+
+
+class IterableProxy(collections.abc.Iterable, ProxyMixin):
+    def __init__(self, validator, *args, **kwargs):
+        assert validator.num_children == 1
+        ProxyMixin.__init__(self, validator, *args, **kwargs)
+
+
+    def __iter__(self):
+        return IteratorProxy(self.validator, self.context, iter(self.target))
+
+
+
 
 
 class IteratorValidator(TreeValidator):
@@ -206,7 +252,7 @@ class IteratorValidator(TreeValidator):
     '''
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        assert len(self.children) <= 1
+        assert self.num_children <= 1
 
 
     def __call__(self, value):
@@ -215,32 +261,14 @@ class IteratorValidator(TreeValidator):
             return False
         context = yield True
 
-        if len(self.children) == 0:
-            # No proxy needed
-            return
-
-        # Return proxy
-        validator = self
-        item_validator = self.children[0]
-
-        class Proxy(collections.abc.Iterator):
-            def __next__(self):
-                item = next(value)
-                try:
-                    return item_validator.validate(item)
-                except ValidationError:
-                    raise validator.error(
-                        value,
-                        details='{} value found while iterating'.format(type(item).__name__ if item is not None else None),
-                        **context
-                    )
-
-        yield Proxy()
+        if self.num_children != 0:
+            # Return proxy
+            yield IteratorProxy(self, context, value)
 
 
     @property
     def niddle(self):
-        return 'an iterator' + ('' if len(self.children) == 0 else ' of ' + self.children[0].niddle)
+        return 'an iterator' + ('' if self.num_children == 0 else ' of ' + self.children[0].niddle)
 
 
 
@@ -250,7 +278,7 @@ class IterableValidator(TreeValidator):
     '''
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        assert len(self.children) <= 1
+        assert self.num_children <= 1
 
 
     def __call__(self, value):
@@ -259,34 +287,11 @@ class IterableValidator(TreeValidator):
             return False
         context = yield True
 
-        if len(self.children) == 0:
-            # No proxy needed
-            return
+        if self.num_children != 0:
+            # Return proxy
+            yield IterableProxy(self, context, value)
 
-        # Return proxy
-        validator = self
-        item_validator = self.children[0]
-
-        class Proxy(collections.abc.Iterable):
-            def __iter__(self):
-                it = iter(value)
-                try:
-                    while True:
-                        item = next(it)
-                        try:
-                            item = item_validator.validate(item)
-                            yield item
-                        except ValidationError:
-                            raise validator.error(
-                                value,
-                                details='{} value found while iterating'.format(type(item).__name__ if item is not None else None),
-                                **context
-                            )
-                except StopIteration:
-                    pass
-
-        yield Proxy()
 
     @property
     def niddle(self):
-        return 'an iterable' + ('' if len(self.children) == 0 else ' of ' + self.children[0].niddle)
+        return 'an iterable' + ('' if self.num_children == 0 else ' of ' + self.children[0].niddle)
