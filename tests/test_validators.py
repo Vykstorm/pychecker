@@ -118,8 +118,6 @@ class TestValidators(TestCase):
         except ValidationError:
             self.fail('validate() must not raise an exception if __call__ returns an exhausted generator')
 
-
-
     def test_validate_return_value(self):
         '''
         validate(x) will return the argument itself (if the argument is valid) or a proxy
@@ -164,6 +162,28 @@ class TestValidators(TestCase):
 
             except ValidationError:
                 pass
+
+
+    def test_test_return_bool(self):
+        '''
+        Method test() on Validator class always return False or True values
+        '''
+        for validator, value in product(validators, values):
+            self.assertIsInstance(validator.test(value), bool)
+
+
+    def test_test_return_value(self):
+        '''
+        Method test() always return False when validate() raises an exception
+        with the same input argument. Also returns True if validate() dont raise
+        an exception
+        '''
+        for validator, value in product(validators, values):
+            try:
+                validator.validate(value)
+                self.assertTrue(validator.test(value))
+            except ValidationError:
+                self.assertFalse(validator.test(value))
 
 
 

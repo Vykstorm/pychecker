@@ -31,8 +31,31 @@ class Validator:
             return ValidationError(**kwargs)
 
 
+    def test(self, value):
+        result = self(value)
+        assert result is None or isinstance(result, (bool, collections.abc.Generator))
+
+        if result is None:
+            return True
+
+        if isinstance(result, bool):
+            return result
+
+        try:
+            valid = next(result)
+            assert isinstance(valid, bool)
+
+        except StopIteration as e:
+            assert e.value is None or isinstance(e.value, bool)
+            valid = e.value if e.value is not None else True
+
+        return valid
+
+
+
     def validate(self, value, context={}):
         result = self(value)
+        assert result is None or isinstance(result, (bool, collections.abc.Generator))
 
         if isinstance(result, bool) or result is None:
             # Returned boolean or None (None is the same as True)
@@ -49,13 +72,10 @@ class Validator:
             try:
                 # First item is boolean
                 valid = next(result)
-                if not isinstance(valid, bool):
-                    # TODO
-                    raise TypeError()
+                assert isinstance(valid, bool)
+
             except StopIteration as e:
-                if e.value is not None and not isinstance(e.value, bool):
-                    # TODO
-                    raise TypeError()
+                assert e.value is None or isinstance(e.value, bool)
                 valid = e.value if e.value is not None else True
 
             if not valid:
