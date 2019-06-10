@@ -19,9 +19,11 @@ class ValidationError(Exception):
     - z shows info about the value or type of the argument (optional, only if y is indicated)
     - details: Detailed info about the error (optional)
     - f: Name of the function where its argument its being validated
+    - message: If indicated, ignore the rest arguments except 'f' (provides full control of error message formatting)
 
     Different kind of messages can be produced depending on what placeholders are
     filled (x and f are mandatory).
+
 
     e.g:
     "s must be float or int but got str instead (at function foo)"
@@ -30,21 +32,25 @@ class ValidationError(Exception):
     '''
 
     def __init__(self, func: Optional[str]=None, param: Optional[str]=None,
-    expected: Optional[str]=None, got: Optional[str]=None, details: Optional[str]=None) -> None:
-        assert got is None or expected is not None
+    expected: Optional[str]=None, got: Optional[str]=None, details: Optional[str]=None, message: Optional[str]=None) -> None:
 
-        msg = param if param is not None else '?'
-        if expected is None and got is None:
-            msg += ' is not valid'
+        if message is None:
+            assert got is None or expected is not None
+
+            s = param if param is not None else '?'
+            if expected is None and got is None:
+                s += ' is not valid'
+            else:
+                if expected is not None:
+                    s += ' must be ' + expected
+                    if got is not None:
+                        s += ' but got ' + got + ' instead'
+
+            if details is not None:
+                s += ': ' + details
         else:
-            if expected is not None:
-                msg += ' must be ' + expected
-                if got is not None:
-                    msg += ' but got ' + got + ' instead'
+            s = message
 
-        if details is not None:
-            msg += ': ' + details
+        s += ' (at function ' + (func if func is not None else '?') + ')'
 
-        msg += ' (at function ' + (func if func is not None else '?') + ')'
-
-        super().__init__(msg)
+        super().__init__(s)

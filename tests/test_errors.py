@@ -72,5 +72,15 @@ class TestErrors(TestCase):
         self.assertRegex(msg, '\: {} \(at function \w+\)$'.format(details))
 
 
+    def test_format_custom_message(self):
+        '''
+        Check that we can build an error message with only the 'message' and 'func' parameters
+        '''
+
+        msg = build_error_message('qux', message='input is not valid')
+        self.assertRegex(msg, '\(at function \w+\)$')
+        self.assertRegex(msg, '^input is not valid')
+
+
 if __name__ == '__main__':
     unittest.main()
