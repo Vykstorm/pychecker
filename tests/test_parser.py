@@ -105,5 +105,16 @@ class TestParser(TestCase):
         self.assertIsInstance(parse(Callable[[int, float, str], Any]), CallableValidator)
 
 
+    def test_parse_Optional(self):
+        '''
+        typing.Optional[...] is parsed to an OptionalValidator
+        typing.Optional is parsed to AnyValidator
+        '''
+        self.assertIsInstance(parse(Optional), AnyValidator)
+        self.assertIsInstance(parse(Optional[int]), OptionalValidator)
+        self.assertIsInstance(parse(Optional[Iterable[int]]), OptionalValidator)
+
+
+
 if __name__ == '__main__':
     unittest.main()

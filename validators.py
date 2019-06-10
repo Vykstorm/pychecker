@@ -411,3 +411,23 @@ class CallableValidator(TreeValidator):
         if self.num_children == 0:
             return 'callable'
         return 'callable({})->{}'.format(', '.join(map(attrgetter('niddle'), self.children[:-1])), self.children[-1].niddle)
+
+
+
+class OptionalValidator(TreeValidator):
+    '''
+    Creates a validator that checks if the input argument either satisifies some
+    condition or is set to None
+    '''
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        assert self.num_children == 1
+
+    def __call__(self, value):
+        if value is None:
+            return True
+        return self.children[0].test(value)
+
+    @property
+    def niddle(self):
+        return self.children[0].niddle + ' or None'

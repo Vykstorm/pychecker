@@ -15,7 +15,7 @@ def is_type_hint(x) -> bool:
     is_type_hint(collections.abc.Iterable) -> True
     is_type_hint([1,2,3]) -> False
     '''
-    return (not isclass(x) and hasattr(x, '__origin__')) or (isclass(x) and hasattr(x, '__module__') and x.__module__ == 'collections.abc')
+    return (not isclass(x) and hasattr(x, '__args__')) or (isclass(x) and hasattr(x, '__module__') and x.__module__ == 'collections.abc')
 
 
 def get_type_hint_info(x) -> Tuple[Any, Tuple]:
@@ -47,8 +47,8 @@ def parse_annotation(x) -> Validator:
     if x in (None, type(None)) or (isinstance(x, collections.abc.Iterable) and (tuple(x) == (None) or tuple(x) == (type(None)))):
         return NoneValidator()
 
-    # Any validator if 'Any' or ... specified
-    if x is Any or x is Ellipsis:
+    # Any validator if 'Any', ... or Optional (without args) specified
+    if x is Any or x is Ellipsis or x is Optional:
         return AnyValidator()
 
     # Validator instances
@@ -78,8 +78,9 @@ def parse_annotation(x) -> Validator:
         if kind == Union:
             # Optional
             if len(args) == 2 and isinstance(args[-1], NoneValidator):
-                return OptionalValidator(args[0])
-            return EmptyValidator()
+                return OptionalValidator(args[:1])
+
+            return AnyValidator()
 
         # TODO
         # ...

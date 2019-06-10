@@ -384,6 +384,20 @@ class TestValidators(TestCase):
         self.assertRaises(ValidationError, proxy, None, None)
 
 
+    def test_optional_validator(self):
+        '''
+        Test for OptionalValidator class
+        '''
+
+        for validator, value in product(validators, values):
+            v = OptionalValidator([validator])
+
+            if value is None or validator.test(value):
+                self.assertTrue(v.test(value))
+            else:
+                self.assertFalse(v.test(value))
+
+
 
 if __name__ == '__main__':
     unittest.main()
