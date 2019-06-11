@@ -320,10 +320,14 @@ class TestValidators(TestCase):
             if isinstance(value, collections.abc.Iterable):
                 validator = IteratorValidator()
                 proxy = validator.validate(iter(value))
+
+                self.assertIsInstance(proxy, collections.abc.Iterator)
                 self.assertEqual(list(proxy), list(value))
 
                 validator = IteratorValidator([TypeValidator(map(type, value))])
                 proxy = validator.validate(iter(value))
+
+                self.assertIsInstance(proxy, collections.abc.Iterator)
                 self.assertEqual(list(proxy), list(value))
 
         validator = IteratorValidator([TypeValidator([int])])
@@ -339,10 +343,13 @@ class TestValidators(TestCase):
             if isinstance(value, collections.abc.Iterable):
                 validator = IterableValidator()
                 proxy = validator.validate(value)
-                self.assertEqual(list(proxy), list(value))
+
+                self.assertIs(proxy, value)
 
                 validator = IterableValidator([TypeValidator(map(type, value))])
                 proxy = validator.validate(value)
+
+                self.assertIsInstance(proxy, collections.abc.Iterable)
                 self.assertEqual(list(proxy), list(value))
             else:
                 self.assertRaises(ValidationError, IterableValidator().validate, value)
