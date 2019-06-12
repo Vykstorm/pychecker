@@ -82,7 +82,7 @@ class MappingBundle(collections.abc.Mapping):
         raise KeyError()
 
     def __iter__(self):
-        for key in frozenset(chain.from_iterable(map(lambda item: item.keys(), self.items))):
+        for key in self.keys():
             yield key, self[key]
 
     def __len__(self):
@@ -93,3 +93,6 @@ class MappingBundle(collections.abc.Mapping):
 
     def __repr__(self):
         return repr(dict(iter(self)))
+
+    def keys(self):
+        return frozenset(chain.from_iterable(map(lambda item: item.keys(), self.items)))
