@@ -7,7 +7,7 @@ from itertools import *
 from inspect import *
 from typing import *
 
-from config import settings, global_settings, default_settings, all_settings, setting_specs
+from config import settings, default_settings, all_settings, setting_specs
 
 
 class TestConfig(TestCase):
@@ -74,11 +74,10 @@ class TestConfig(TestCase):
         # __len__()
         self.assertEqual(len(settings), len(all_settings))
 
-
         # clear()
-        settings.enabled = not default_settings.enabled
+        settings.enabled = not default_settings['enabled']
         settings.clear()
-        self.assertEqual(settings.enabled, default_settings.enabled)
+        self.assertEqual(settings.enabled, default_settings['enabled'])
 
         # __contains__
         for setting in settings:
@@ -94,22 +93,11 @@ class TestConfig(TestCase):
         repr(settings)
 
 
-    def test_global_settings(self):
+    def test_settings_debug(self):
         '''
-        Check that global settings overrides default settings values
+        if __debug__ is enabled, 'enabled' setting will be set to True by default
         '''
-        global_settings.enabled = True
-        self.assertTrue(settings.enabled)
-
-        global_settings.enabled = False
-        self.assertFalse(settings.enabled)
-
-        settings.enabled = True
-        self.assertTrue(settings.enabled)
-
-        global_settings.clear()
-        settings.clear()
-
+        self.assertEqual(settings.enabled, __debug__)
 
 
 if __name__ == '__main__':
