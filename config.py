@@ -82,11 +82,14 @@ class Settings(collections.abc.MutableMapping):
     def keys(self):
         return self.bundle.keys()
 
+    def clear(self):
+        self._entries.clear()
+
     def __iter__(self):
         return iter(self.bundle)
 
     def __len__(self):
-        return len(sef.bundle)
+        return len(self.bundle)
 
     def __str__(self):
         return str(self.bundle)
