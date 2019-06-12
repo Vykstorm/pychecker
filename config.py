@@ -77,7 +77,10 @@ class Settings(collections.abc.MutableMapping):
         if key.startswith('_'):
             object.__setattr__(self, key, value)
         else:
-            self.__setitem__(key, value)
+            try:
+                self.__setitem__(key, value)
+            except KeyError as e:
+                raise AttributeError(*e.args)
 
     def keys(self):
         return self.bundle.keys()
