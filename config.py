@@ -41,8 +41,8 @@ class Settings(collections.abc.MutableMapping):
     Objects of this class are used to store setting values.
     '''
     def __init__(self, **kwargs):
-        self._entries = dict(**kwargs)
-
+        self._entries = {}
+        self.update(kwargs)
 
     @property
     def bundle(self):
