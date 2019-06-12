@@ -8,7 +8,7 @@ from parser import parse_annotation
 import types
 
 from utils import MappingBundle
-from config import settings
+from config import settings, Settings
 from errors import ValidationError
 
 
@@ -146,7 +146,8 @@ def build_wrapper(func, *args, **kwargs):
                          'Use keyword arguments instead')
 
     # Configure wrapper (arguments override global settings)
-    options = MappingBundle(settings, kwargs)
+
+    options = MappingBundle(settings, Settings(**kwargs))
 
     # Get function signature
     sig = SignatureMixin(signature(func))
