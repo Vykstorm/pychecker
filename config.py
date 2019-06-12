@@ -3,7 +3,6 @@ import inspect
 from inspect import isclass
 from typing import *
 import collections.abc
-from utils import MappingBundle
 from itertools import chain
 
 
@@ -44,10 +43,6 @@ class Settings(collections.abc.MutableMapping):
         self._entries = {}
         self.update(kwargs)
 
-    @property
-    def bundle(self):
-        return MappingBundle(default_settings, self._entries)
-
 
     def __delitem__(self, key):
         try:
@@ -57,7 +52,9 @@ class Settings(collections.abc.MutableMapping):
 
     def __getitem__(self, key):
         try:
-            return self.bundle[key]
+            if key not in self._entries:
+                return default_settings[key]
+            return self._entries[key]
         except KeyError:
             raise KeyError('setting {} not found'.format(key))
 
@@ -99,16 +96,16 @@ class Settings(collections.abc.MutableMapping):
         self._entries.clear()
 
     def __iter__(self):
-        return iter(self.bundle)
+        return iter(all_settings)
 
     def __len__(self):
-        return len(self.bundle)
+        return len(all_settings)
 
     def __str__(self):
-        return str(self.bundle)
+        return str(dict(self.items()))
 
     def __repr__(self):
-        return repr(self.bundle)
+        return repr(dict(self.items()))
 
 
 # Global settings
