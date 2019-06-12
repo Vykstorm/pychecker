@@ -3,7 +3,7 @@ import inspect
 from inspect import isclass
 from typing import *
 import collections.abc
-from utils import MappingBundle, get_caller_module
+from utils import MappingBundle
 from itertools import chain
 
 
