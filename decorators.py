@@ -7,6 +7,8 @@ from inspect import signature, Parameter, Signature
 from parser import parse_annotation
 import types
 
+from utils import MappingBundle
+from config import settings
 from errors import ValidationError
 
 
@@ -143,8 +145,8 @@ def build_wrapper(func, *args, **kwargs):
         raise ValueError('Positional arguments are not allowed in @checked decorator. '+
                          'Use keyword arguments instead')
 
-    # Configure wrapper
-    options = kwargs
+    # Configure wrapper (arguments override global settings)
+    options = MappingBundle(settings, kwargs)
 
     # Get function signature
     sig = SignatureMixin(signature(func))
