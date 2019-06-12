@@ -146,8 +146,12 @@ def build_wrapper(func, *args, **kwargs):
                          'Use keyword arguments instead')
 
     # Configure wrapper (arguments override global settings)
-
     options = MappingBundle(settings, Settings(**kwargs))
+
+
+    # If validation is disabled, we dont decorate the function
+    if not options['enabled']:
+        return func
 
     # Get function signature
     sig = SignatureMixin(signature(func))
