@@ -4,6 +4,8 @@ from inspect import isclass
 from typing import *
 import collections.abc
 from utils import MappingBundle, get_caller_module
+from itertools import chain
+
 
 
 # This is a list of all avaliable configuration settings and its specs
@@ -24,12 +26,16 @@ all_settings = list(setting_specs.keys())
 
 class Settings(collections.abc.MutableMapping):
     '''
-    Instances of this class are mutable mapping objects which only can have
-    entries with keys that matches any of the settings defined above. Also,
-    when adding a new entry, the value is checked using the setting specs
+    Objects of this class are used to store setting values.
     '''
-    def __init__(self, **kwargs):
-        self._entries = dict(**kwargs)
+    def __init__(self, values={}, defaults={}):
+        self._entries = dict(**values)
+        self._defaults = defaults
+
+    @property
+    def bundle(self):
+        return MappingBundle(self._defaults, self._entries)
+
 
     def __delitem__(self, key):
         try:
@@ -37,14 +43,11 @@ class Settings(collections.abc.MutableMapping):
         except KeyError:
             pass
 
-    def __iter__(self):
-        return iter(self._entries)
-
-    def __len__(self):
-        return len(self._entries)
-
     def __getitem__(self, key):
-        return self._entries[key]
+        try:
+            return self.bundle[key]
+        except KeyError:
+            raise KeyError('setting {} not found'.format(key))
 
     def __setitem__(self, key, value):
         if key not in all_settings:
@@ -58,52 +61,6 @@ class Settings(collections.abc.MutableMapping):
             raise ValueError('{} setting must be one of this values: {}'.format(key, ', '.join(map(str, spec))))
 
         self._entries[key] = value
-
-
-
-# Default values for each setting
-global_settings = Settings(
-    enabled=False,
-    ignore_subclasses=False,
-    match_self=True,
-    match_args=True,
-    match_varargs=True,
-    match_defaults=False,
-    match_return=True
-)
-
-
-class ModuleSettings(Settings):
-    '''
-    Objects of this class holds specific configuration settings for each user module.
-    They also have the next properties:
-
-    - They are Settings class objects (they implement the MutableMapping interface) but
-    also defines the metamethods __setattr__ & __getattribute__ to access/change settings
-    via indexation
-
-    - When getting a value(s) for an specific settting(s), if it hast not been set yet,
-    it returns a backup value (looking first on global_settings and then on default_settings).
-    This is done when using the metamethods __len__, __iter__, __getitem__, __getattribute__
-    '''
-    def __len__(self):
-        return len(all_settings)
-
-    def __iter__(self):
-        for key in all_settings:
-            yield key, self[key]
-
-    def __str__(self):
-        return str(dict(iter(self)))
-
-    def __repr__(self):
-        return repr(dict(iter(self)))
-
-
-    def __getitem__(self, key):
-        if key not in all_settings:
-            raise KeyError('There is not setting called {}'.format(key))
-        return MappingBundle(global_settings, self._entries).get(key)
 
 
     def __getattribute__(self, key):
@@ -122,6 +79,38 @@ class ModuleSettings(Settings):
         else:
             self.__setitem__(key, value)
 
+    def keys(self):
+        return self.bundle.keys()
+
+    def __iter__(self):
+        return iter(self.bundle)
+
+    def __len__(self):
+        return len(sef.bundle)
+
+    def __str__(self):
+        return str(self.bundle)
+
+    def __repr__(self):
+        return repr(self.bundle)
+
+
+
+# Default values for each setting
+default_settings = Settings(values=dict(
+    enabled=False,
+    ignore_subclasses=False,
+    match_self=True,
+    match_args=True,
+    match_varargs=True,
+    match_defaults=False,
+    match_return=True
+))
+
+
+
+# Global settings (applied to all modules)
+global_settings = Settings(defaults=default_settings)
 
 
 
@@ -137,7 +126,7 @@ class ModuleSettingsProxy(collections.abc.MutableMapping):
 
     def get_module_settings(self, module):
         if module not in self._settings:
-            self._settings[module] = ModuleSettings()
+            self._settings[module] = ModuleSettings(defaults=global_settings)
         return self._settings[module]
 
 
