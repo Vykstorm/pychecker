@@ -62,7 +62,7 @@ class Settings(collections.abc.MutableMapping):
 
 
 # Default values for each setting
-default_settings = Settings(
+global_settings = Settings(
     enabled=False,
     ignore_subclasses=False,
     match_self=True,
@@ -71,12 +71,6 @@ default_settings = Settings(
     match_defaults=False,
     match_return=True
 )
-
-
-# Global settings (applied to all modules & overrides default values)
-global_settings = Settings()
-
-
 
 
 class ModuleSettings(Settings):
@@ -109,7 +103,7 @@ class ModuleSettings(Settings):
     def __getitem__(self, key):
         if key not in all_settings:
             raise KeyError('There is not setting called {}'.format(key))
-        return MappingBundle(default_settings, global_settings, self._entries).get(key)
+        return MappingBundle(global_settings, self._entries).get(key)
 
 
     def __getattribute__(self, key):
