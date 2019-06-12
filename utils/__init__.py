@@ -24,37 +24,6 @@ def ordinal(k):
 
 
 
-def get_caller_module():
-    '''
-    If a module A defines the next function:
-    ```
-    def foo():
-        module = get_caller_module()
-        if module is not None:
-            print('Called from ', module.__name__)
-        else:
-            print('Called from ', __name__)
-    ```
-
-    And a module B imports A and calls foo(), the output will be 'Called from B'
-    Whereas if module A calls itself the functon foo(), the output will be 'Called from A'
-    '''
-    stack = inspect.stack()
-    if len(stack) <= 2:
-        raise ValueError('You must call get_caller_module() inside another function')
-
-    called_module = inspect.getmodule(stack[1].frame)
-    if called_module is None:
-        return None
-
-    for item in stack[2:]:
-        module = inspect.getmodule(item.frame)
-        if module is None or module != called_module:
-            return module
-    return None
-
-
-
 class MappingBundle(collections.abc.Mapping):
     '''
     Instances of this class are inmutable mappings that are built stacking up
