@@ -82,9 +82,6 @@ class Settings(collections.abc.MutableMapping):
             except KeyError as e:
                 raise AttributeError(*e.args)
 
-    def keys(self):
-        return self.bundle.keys()
-
     def clear(self):
         self._entries.clear()
 

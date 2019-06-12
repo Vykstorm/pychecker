@@ -73,26 +73,22 @@ class MappingBundle(collections.abc.Mapping):
     - item(x1, x2, ..., xk-1, key) otherwise
     '''
     def __init__(self, *args: Mapping):
-        self.items = list(args)
+        self.objs = list(args)
 
     def __getitem__(self, key):
-        for item in reversed(self.items):
+        for item in reversed(self.objs):
             if key in item:
                 return item[key]
         raise KeyError()
 
     def __iter__(self):
-        for key in self.keys():
-            yield key, self[key]
+        return iter(frozenset(chain.from_iterable(map(lambda obj: iter(obj), self.objs))))
 
     def __len__(self):
         return len(list(iter(self)))
 
     def __str__(self):
-        return str(dict(iter(self)))
+        return str(dict(self.items()))
 
     def __repr__(self):
-        return repr(dict(iter(self)))
-
-    def keys(self):
-        return frozenset(chain.from_iterable(map(lambda item: item.keys(), self.items)))
+        return repr(dict(self.items()))
