@@ -6,7 +6,6 @@ from inspect import signature, Parameter
 from itertools import count, islice
 from operator import attrgetter
 from errors import ValidationError
-from utils.singleton import singleton
 from utils import ordinal
 
 
