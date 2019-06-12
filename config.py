@@ -160,6 +160,9 @@ class ModuleSettingsProxy(collections.abc.MutableMapping):
     def __setattr__(self, key, value):
         return self.settings.__setattr__(key, value)
 
+    def clear(self):
+        self.settings.clear()
+
     def __iter__(self):
         return iter(self.settings)
 
