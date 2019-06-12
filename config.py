@@ -126,7 +126,7 @@ class ModuleSettingsProxy(collections.abc.MutableMapping):
 
     def get_module_settings(self, module):
         if module not in self._settings:
-            self._settings[module] = ModuleSettings(defaults=global_settings)
+            self._settings[module] = Settings(defaults=global_settings)
         return self._settings[module]
 
 
