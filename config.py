@@ -98,7 +98,7 @@ class Settings(collections.abc.MutableMapping):
 
 # Default values for each setting
 default_settings = Settings(values=dict(
-    enabled=False,
+    enabled=__debug__, # Only activate validation when debugging
     ignore_subclasses=False,
     match_self=True,
     match_args=True,
@@ -111,6 +111,7 @@ default_settings = Settings(values=dict(
 
 # Global settings (applied to all modules)
 global_settings = Settings(defaults=default_settings)
+
 
 
 
