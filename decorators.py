@@ -145,12 +145,12 @@ def build_wrapper(func, *args, **kwargs):
                          'Use keyword arguments instead')
 
     # Configure wrapper (arguments override global settings)
-    options = dict(settings)
-    options.update(Settings(**kwargs))
+    options = settings.copy()
+    options.update(kwargs)
 
 
     # If validation is disabled, we dont decorate the function
-    if not options['enabled']:
+    if not options.enabled:
         return func
 
     # Get function signature
@@ -184,34 +184,41 @@ def build_wrapper(func, *args, **kwargs):
             bounded.apply_defaults()
 
             # Validate each argument
-            args = []
-            varargs = []
-            varkwargs = bounded.kwargs
+            if options.match_args:
+                args = []
+                varargs = []
+                varkwargs = bounded.kwargs
 
-            for key, value in bounded.arguments.items():
-                param = sig.parameters[key]
+                for key, value in bounded.arguments.items():
+                    param = sig.parameters[key]
 
-                if param.kind == Parameter.VAR_KEYWORD:
-                    # **kwargs
-                    continue
-                if param.kind == Parameter.VAR_POSITIONAL:
-                    # *args
-                    if key in param_validators:
-                        validate = partial(param_validators[key].validate, context={'func': func.__name__, 'param': 'items on *{}'.format(key)})
-                        varargs.extend(map(validate, value))
+                    if param.kind == Parameter.VAR_KEYWORD:
+                        # **kwargs
+                        continue
+                    if param.kind == Parameter.VAR_POSITIONAL:
+                        # *args
+                        if key in param_validators:
+                            validate = partial(param_validators[key].validate, context={'func': func.__name__, 'param': 'items on *{}'.format(key)})
+                            varargs.extend(map(validate, value))
+                        else:
+                            # *args items will not be validated
+                            varargs.extend(value)
                     else:
-                        # *args items will not be validated
-                        varargs.extend(value)
-                else:
-                    # Regular argument
-                    validate = partial(param_validators[key].validate, context={'func': func.__name__, 'param': key})
-                    args.append(validate(value))
+                        # Regular argument
+                        validate = partial(param_validators[key].validate, context={'func': func.__name__, 'param': key})
+                        args.append(validate(value))
+                args += varargs
+
+            else:
+                # No validation is performed on input arguments
+                args = bounded.args
 
             # Now call the wrapped function
-            result = func(*(args + varargs), **kwargs)
+            result = func(*args, **kwargs)
 
-            # Finally validate the return value
-            result = return_validator.validate(result, context={'func': func.__name__, 'param': 'return value'})
+            if options.match_return:
+                # Validate the return value
+                result = return_validator.validate(result, context={'func': func.__name__, 'param': 'return value'})
 
             # Return the final output
             return result
