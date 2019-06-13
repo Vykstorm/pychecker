@@ -107,6 +107,11 @@ class Settings(collections.abc.MutableMapping):
     def __repr__(self):
         return repr(dict(self.items()))
 
+    def copy(self):
+        other = Settings()
+        other._entries = self._entries.copy()
+        return other
+
 
 # Global settings
 settings = Settings()

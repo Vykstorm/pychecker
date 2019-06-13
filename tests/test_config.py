@@ -41,7 +41,6 @@ class TestConfig(TestCase):
             self.assertEqual(settings[setting], default_settings[setting])
 
 
-
         # Trying to change or access an invalid setting raises an error
         self.assertRaises(AttributeError, settings.__getattribute__, 'foo')
         self.assertRaises(KeyError, settings.__getitem__, 'foo')
@@ -88,11 +87,19 @@ class TestConfig(TestCase):
         self.assertTrue(settings.enabled)
         settings.clear()
 
-        # Also __str__ & __repr__
+        # __str__ & __repr__
         str(settings)
         repr(settings)
 
+        # copy & __eq__
+        other = settings.copy()
+        self.assertEqual(other, settings)
+        other.enabled = not settings.enabled
+        self.assertNotEqual(other, settings)
+        self.assertEqual(settings.enabled, default_settings['enabled'])
 
+
+        
     def test_settings_debug(self):
         '''
         if __debug__ is enabled, 'enabled' setting will be set to True by default
