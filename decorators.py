@@ -197,7 +197,7 @@ def build_wrapper(func, *args, **kwargs):
                         continue
                     if param.kind == Parameter.VAR_POSITIONAL:
                         # *args
-                        if key in param_validators:
+                        if key in param_validators and options.match_varargs:
                             validate = partial(param_validators[key].validate, context={'func': func.__name__, 'param': 'items on *{}'.format(key)})
                             varargs.extend(map(validate, value))
                         else:
