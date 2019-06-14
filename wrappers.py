@@ -216,9 +216,22 @@ class ValidateFuncWrapper(CallableWrapper):
 
 
     def __get__(self, obj, objtype):
+        options = self.options
+        class MethodWrapper(CallableWrapper):
+            def __call__(self, obj, *args, **kwargs):
+                # Validate 'self' object
+                if options['match_self'] and not isinstance(obj, objtype):
+                    raise ValidationError(
+                        func=self.__name__,
+                        param='1st argument',
+                        expected='instance of the class {}'.format(objtype.__name__),
+                        got=type(obj).__name__ if obj is not None else str(None))
+
+                return super().__call__(obj, *args, **kwargs)
+
         if obj is None:
-            return self
-        return types.MethodType(self, obj)
+            return MethodWrapper(self)
+        return types.MethodType(MethodWrapper(self), obj)
 
 
     def __call__(self, *args, **kwargs):
