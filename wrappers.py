@@ -11,23 +11,18 @@ import types
 
 
 
-class CallableWrapper:
+
+class Wrapper:
     '''
-    Objects of this class wraps callable objects:
-    - Calling this instance will invoke the wrapped callable with the same arguments.
-    - Also it has the attributes __name__, __qualname__, __module__, __annotations__,
-    __doc__ equal than the wrapped callable.
+    Instances of this class act like "wrappers" for other objects
+    A wrapper has the next properties:
+    - Has the attributes __name__, __qualname__, __module__, __annotations__,
+    __doc__ equal than the wrapped object
     - _str__ & __repr__ returns the same as if you call __str__ and __repr__ in the wrapped object
     '''
     def __init__(self, obj):
-        '''
-        Initializes this instance.
-        :param obj: Is the object to be wrapped. Must be callable
-        '''
-        assert callable(obj)
         self.obj = obj
         update_wrapper(self, obj)
-
 
     @property
     def wrapped(self):
@@ -36,16 +31,32 @@ class CallableWrapper:
         '''
         return self.obj
 
-
-    def __call__(self, *args, **kwargs):
-        return self.obj(*args, **kwargs)
-
-
     def __str__(self):
         return str(self.obj)
 
     def __repr__(self):
         return repr(self.obj)
+
+
+
+class CallableWrapper(Wrapper):
+    '''
+    Its the same as Wrapper but instances of this class are also callables. When invoked, they call
+    the wrapped object with the same arguments.
+    '''
+    def __init__(self, obj):
+        '''
+        Initializes this instance.
+        :param obj: Is the object to be wrapped. Must be callable
+        '''
+        assert callable(obj)
+        super().__init__(obj)
+
+
+    def __call__(self, *args, **kwargs):
+        return self.obj(*args, **kwargs)
+
+
 
 
 
@@ -202,7 +213,6 @@ class ValidateFuncWrapper(CallableWrapper):
         return self.return_validator.validate(
             output,
             context={'func': self.__name__, 'param': 'return value'})
-
 
 
     def __get__(self, obj, objtype):
