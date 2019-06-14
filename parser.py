@@ -5,6 +5,7 @@ import collections.abc
 from typing import *
 from validators import *
 from inspect import isclass
+from config import Settings
 
 
 def is_type_hint(x) -> bool:
@@ -38,10 +39,15 @@ def get_type_hint_info(x) -> Tuple[Any, Tuple]:
 
 
 
-def parse_annotation(x) -> Validator:
+def parse_annotation(x, options: Optional[Mapping[str, Any]]=None) -> Validator:
     '''
     Transform type annotation to validator
     '''
+    if options is None:
+        options = Settings()
+    elif not isinstance(options, Settings):
+        options = Settings(**options)
+
 
     # None validator
     if x in (None, type(None)) or (isinstance(x, collections.abc.Iterable) and (tuple(x) == (None) or tuple(x) == (type(None)))):
@@ -92,11 +98,11 @@ def parse_annotation(x) -> Validator:
             return x()
 
         # Regular type validator
-        return TypeValidator([x])
+        return TypeValidator([x], check_subclasses=not options.ignore_subclasses)
 
     if isinstance(x, collections.abc.Iterable) and all(map(isclass, x)):
         # Type validator but multiple types indicated
-        return TypeValidator(x)
+        return TypeValidator(x, check_subclasses=not options.ignore_subclasses)
 
     if callable(x):
         # User validator

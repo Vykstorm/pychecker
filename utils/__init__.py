@@ -40,6 +40,14 @@ class CallableWrapper:
         update_wrapper(self, obj)
 
 
+    @property
+    def wrapped(self):
+        '''
+        :return Returns the callable object wrapped by this instance
+        '''
+        return self.obj
+
+
     def __call__(self, *args, **kwargs):
         return self.obj(*args, **kwargs)
 
