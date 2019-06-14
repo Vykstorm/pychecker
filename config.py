@@ -11,6 +11,7 @@ from itertools import chain
 setting_specs = dict(
     enabled=bool,
     ignore_subclasses=bool,
+    match_compatible_types=bool,
     match_self=bool,
     match_args=bool,
     match_varargs=bool,
@@ -26,6 +27,7 @@ all_settings = list(setting_specs.keys())
 default_settings = dict(
     enabled=__debug__, # Only activate validation when debugging
     ignore_subclasses=False,
+    match_compatible_types=False,
     match_self=True,
     match_args=True,
     match_varargs=True,
