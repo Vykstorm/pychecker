@@ -64,28 +64,22 @@ class checked:
     @lru_cache(maxsize=1)
     def _wrapper(self):
         assert self.func is not None
-        return build_wrapper(self.func, *self.args, **self.kwargs)
+
+        func = self.func
+        args, kwargs = self.args, self.kwargs
+
+        if len(args) > 0:
+            raise ValueError('Positional arguments are not allowed in @checked decorator. '+
+                             'Use keyword arguments instead')
 
 
+        # Configure wrapper (arguments override global settings)
+        options = settings.copy()
+        options.update(kwargs)
 
+        # If validation is disabled, just return the function undecorated
+        if not options.enabled:
+            return func
 
-
-def build_wrapper(func, *args, **kwargs):
-    '''
-    Builds a wrapper around the given function to add validation features.
-    '''
-
-    if len(args) > 0:
-        raise ValueError('Positional arguments are not allowed in @checked decorator. '+
-                         'Use keyword arguments instead')
-
-    # Configure wrapper (arguments override global settings)
-    options = settings.copy()
-    options.update(kwargs)
-
-
-    # If validation is disabled, we dont decorate the function
-    if not options.enabled:
-        return func
-
-    return ValidateFuncWrapper(func, options)
+        # Decorate function and return wrapper
+        return ValidateFuncWrapper(func, options)
