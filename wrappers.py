@@ -143,7 +143,7 @@ class ValidateFuncWrapper(CallableWrapper):
         bounded.apply_defaults()
 
         # Validate each argument
-        if self.options.match_args:
+        if self.options['match_args']:
             args = []
             varargs = []
             varkwargs = bounded.kwargs
@@ -156,7 +156,7 @@ class ValidateFuncWrapper(CallableWrapper):
                     continue
                 if param.kind == Parameter.VAR_POSITIONAL:
                     # *args
-                    if key in self.param_validators and self.options.match_varargs:
+                    if key in self.param_validators and self.options['match_varargs']:
                         validate = partial(self.param_validators[key].validate, context={'func': self.__name__, 'param': 'items on *{}'.format(key)})
                         varargs.extend(map(validate, value))
                     else:
@@ -175,7 +175,7 @@ class ValidateFuncWrapper(CallableWrapper):
         # Now call the wrapped function
         result = super().__call__(*args, **kwargs)
 
-        if self.options.match_return:
+        if self.options['match_return']:
             # Validate the return value
             result = self.return_validator.validate(result, context={'func': self.__name__, 'param': 'return value'})
 

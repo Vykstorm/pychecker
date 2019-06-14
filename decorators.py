@@ -31,7 +31,11 @@ class checked:
     '''
     def __init__(self, *args, **kwargs):
         self.func = args[0] if len(args) == 1 and callable(args[0]) else None
-        self.args, self.kwargs = (args, kwargs) if self.func is None else ((), {})
+
+        self.options = dict(settings)
+        if self.func is None:
+            self.options.update(Settings(**kwargs))
+
 
     def __call__(self, *args, **kwargs):
         if self.func is None:
@@ -65,21 +69,9 @@ class checked:
     def _wrapper(self):
         assert self.func is not None
 
-        func = self.func
-        args, kwargs = self.args, self.kwargs
-
-        if len(args) > 0:
-            raise ValueError('Positional arguments are not allowed in @checked decorator. '+
-                             'Use keyword arguments instead')
-
-
-        # Configure wrapper (arguments override global settings)
-        options = settings.copy()
-        options.update(kwargs)
-
         # If validation is disabled, just return the function undecorated
-        if not options.enabled:
-            return func
+        if not self.options['enabled']:
+            return self.func
 
         # Decorate function and return wrapper
-        return ValidateFuncWrapper(func, options)
+        return ValidateFuncWrapper(self.func, self.options)
