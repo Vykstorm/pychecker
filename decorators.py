@@ -3,7 +3,7 @@
 from typing import *
 from functools import lru_cache
 from config import settings, Settings
-from wrappers import Wrapper
+from wrappers import ValidateFuncWrapper
 
 
 INVALID_USAGE_MESSAGE = '''
@@ -88,4 +88,4 @@ def build_wrapper(func, *args, **kwargs):
     if not options.enabled:
         return func
 
-    return Wrapper(func, options)
+    return ValidateFuncWrapper(func, options)

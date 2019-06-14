@@ -110,7 +110,7 @@ class SignatureMixin:
 
 
 
-class Wrapper(CallableWrapper):
+class ValidateFuncWrapper(CallableWrapper):
     def __init__(self, func, options):
         super().__init__(func)
         self.options = options
