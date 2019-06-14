@@ -6,7 +6,8 @@ from inspect import signature, Parameter
 from itertools import count, islice
 from operator import attrgetter
 from errors import ValidationError
-from utils import ordinal
+from utils import ordinal, is_compatible
+import operator
 
 
 class Validator:
@@ -140,20 +141,29 @@ class TypeValidator(Validator):
     Validator that checks if the given input argument has the expected type
     '''
 
-    def __init__(self, types: Iterable[Type], check_subclasses: bool=True):
+    def __init__(self, types: Iterable[Type], check_subclasses: bool=True, check_compatible_types: bool=False):
         '''
         Constructor.
         :param types: An iterable with all possible valid types that argument
         must have to pass the test
-        :param check_subclasses: If True, the argument will be valid if its an instance
+
+        :param check_subclasses: If True, the argument will be valid also if it is an instance
         of a subclass of any of the classes specified in types. Default is True
+
+        :param check_compatible_types: If this is set to True, all arguments that can be converted
+        to any of the types indicated will also be valid. For example, float items can be converted to complex or
+        int (float defines the metamethods __complex__ & __int__)
+
+        This argument is only used if expected types includes one of the next classes:
+        int, bool, float, complex, str, bytes
         '''
-        types = tuple(types)
+        types = frozenset(types)
         assert len(types) > 0
 
         super().__init__()
-        self.types = types
+        self.types = tuple(types)
         self.check_subclasses = check_subclasses
+        self.check_compatible_types = check_compatible_types
 
 
     def __call__(self, value):
@@ -162,6 +172,11 @@ class TypeValidator(Validator):
         else:
             value_type = type(value)
             valid = any(map(lambda t: value_type == t, self.types))
+
+        if not valid and self.check_compatible_types:
+            basic_types = tuple(frozenset(self.types) & frozenset([int, bool, float, complex, str, bytes]))
+            valid = len(basic_types) > 0 and is_compatible(value, basic_types)
+
         return valid
 
 
