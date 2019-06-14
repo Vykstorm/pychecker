@@ -3,7 +3,7 @@ from typing import *
 from inspect import signature
 from errors import ValidationError
 from itertools import count
-from functools import lru_cache, partial
+from functools import lru_cache, partial, update_wrapper
 from inspect import signature, Parameter, Signature
 from parser import parse_annotation
 import types
