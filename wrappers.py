@@ -6,7 +6,6 @@ from itertools import count
 from functools import lru_cache, partial, update_wrapper
 import inspect
 from inspect import Parameter, Signature
-from parser import parse_annotation
 import types
 
 
@@ -126,6 +125,8 @@ class ValidateFuncWrapper(CallableWrapper):
         Returns a list of validators (on for each parameter in the wrapped function signature),
         that will be used to validate the input arguments
         '''
+        from parser import parse_annotation
+
         signature = self.signature
         validators = []
 
@@ -143,6 +144,8 @@ class ValidateFuncWrapper(CallableWrapper):
         '''
         Returns the validator that will be used to validate the return value
         '''
+        from parser import parse_annotation
+
         signature = self.signature
         return parse_annotation(
                 Any if signature.return_annotation is Parameter.empty else signature.return_annotation,

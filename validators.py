@@ -9,6 +9,7 @@ from operator import attrgetter
 from errors import ValidationError
 from utils import ordinal
 import operator
+from wrappers import Wrapper, CallableWrapper
 
 
 class Validator:
@@ -287,51 +288,47 @@ class TreeValidator(Validator):
 
 
 class ProxyMixin:
-    def __init__(self, validator: TreeValidator, context: Dict, target):
-        self.validator, self.context, self.target = validator, context, target
-
-    def __str__(self):
-        return str(self.target)
-
-    def __repr__(self):
-        return repr(self.target)
+    def __init__(self, validator: TreeValidator, context: Dict):
+        self.validator, self.context = validator, context
 
 
-class IteratorProxy(collections.abc.Iterator, ProxyMixin):
-    def __init__(self, *args, **kwargs):
+class IteratorProxy(collections.abc.Iterator, Wrapper, ProxyMixin):
+    def __init__(self, target, *args, **kwargs):
         ProxyMixin.__init__(self, *args, **kwargs)
-        assert self.validator.num_children == 1 and isinstance(self.target, collections.abc.Iterator)
+        Wrapper.__init__(self, target)
+        assert self.validator.num_children == 1 and isinstance(self.wrapped, collections.abc.Iterator)
 
     def __next__(self):
-        item = next(self.target)
+        item = next(self.wrapped)
         try:
             return self.validator.children[0].validate(item)
         except ValidationError:
             raise self.validator.error(
-                self.target,
+                self.wrapped,
                 details='{} value found while iterating'.format(type(item).__name__ if item is not None else None),
                 **self.context
             )
 
 
-class IterableProxy(collections.abc.Iterable, ProxyMixin):
-    def __init__(self, *args, **kwargs):
+class IterableProxy(collections.abc.Iterable, Wrapper, ProxyMixin):
+    def __init__(self, target, *args, **kwargs):
         ProxyMixin.__init__(self, *args, **kwargs)
-        assert self.validator.num_children == 1 and isinstance(self.target, collections.abc.Iterable)
+        Wrapper.__init__(self, target)
+        assert self.validator.num_children == 1 and isinstance(self.wrapped, collections.abc.Iterable)
 
     def __iter__(self):
-        return IteratorProxy(self.validator, self.context, iter(self.target))
+        return IteratorProxy(iter(self.wrapped), self.validator, self.context)
 
 
 
-class CallableProxy(collections.abc.Callable, ProxyMixin):
-    def __init__(self, *args, **kwargs):
+class CallableProxy(collections.abc.Callable, CallableWrapper, ProxyMixin):
+    def __init__(self, target, *args, **kwargs):
+        assert callable(target)
         ProxyMixin.__init__(self, *args, **kwargs)
-        assert callable(self.target)
-        update_wrapper(self, self.target)
+        CallableWrapper.__init__(self, target)
 
         try:
-            self.sig = signature(self.target)
+            self.sig = signature(self.wrapped)
         except:
             # No signature avaliable
             self.sig = None
@@ -368,10 +365,10 @@ class CallableProxy(collections.abc.Callable, ProxyMixin):
                     )
 
             # Invoke the callable
-            result = self.target(*args)
+            result = CallableWrapper.__call__(self, *args)
         else:
             # Callable signature not avaliable
-            result = self.target(*args, **kwargs)
+            result = CallableWrapper.__call__(self, *args, **kwargs)
 
         # Validate the result
         context = {'func': func, 'param': 'return value of {}'.format(param)}
@@ -404,7 +401,7 @@ class IteratorValidator(TreeValidator):
 
         if self.num_children != 0:
             # Return proxy
-            yield IteratorProxy(self, context, value)
+            yield IteratorProxy(value, self, context)
 
 
     @property
@@ -430,7 +427,7 @@ class IterableValidator(TreeValidator):
 
         if self.num_children != 0:
             # Return proxy
-            yield IterableProxy(self, context, value)
+            yield IterableProxy(value, self, context)
 
 
     @property
@@ -466,7 +463,7 @@ class CallableValidator(TreeValidator):
         context = yield True
 
         if self.num_children != 0:
-            yield CallableProxy(self, context, value)
+            yield CallableProxy(value, self, context)
 
     @property
     def niddle(self):

@@ -3,11 +3,10 @@
 import typing
 import collections.abc
 from typing import *
-from validators import *
 from inspect import isclass
 from functools import partial
 from config import settings
-
+from validators import *
 
 
 def parse_annotation(x, options: Mapping[str, Any]=None) -> Validator:
