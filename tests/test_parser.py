@@ -73,7 +73,7 @@ class TestParser(TestCase):
 
         validator = parse(types)
         self.assertIsInstance(validator, TypeValidator)
-        self.assertEqual(tuple(validator.types), tuple(types))
+        self.assertEqual(frozenset(validator.types), frozenset(types))
 
 
     def test_parse_Iterator(self):
