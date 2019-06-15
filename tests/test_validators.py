@@ -13,7 +13,8 @@ values = [
     'foo', b'bar', 10, None, 1.5,
     [1, 2, 3], (1, 2, 3), set([4, 5, 6]), frozenset([7, 8, 9]),
     complex(1, 2), False, True, {'a':1, 'b':2, 'c':3},
-    lambda x, y, z: (x, y, z), lambda x, *args, **kwargs: (x, args, kwargs)
+    lambda x, y, z: (x, y, z), lambda x, *args, **kwargs: (x, args, kwargs),
+    [], {}, ()
 ]
 
 # Set of random validators
@@ -249,7 +250,27 @@ class TestValidators(TestCase):
             self.fail('NoneValidator must match the None value')
 
 
-    def test_type_validator_match(self):
+    def test_true_validator(self):
+        '''
+        Test TrueValidator (truth value testing validator)
+        '''
+        validator = TrueValidator()
+
+        for value in values:
+            self.assertEqual(validator.test(value), bool(value))
+
+
+    def test_false_validator(self):
+        '''
+        Test FalseValidator (false value testing validator)
+        '''
+        validator = FalseValidator()
+
+        for value in values:
+            self.assertEqual(validator.test(value), not bool(value))
+
+
+    def test_type_validator(self):
         '''
         Check TypeValidator works properly
         '''
@@ -324,11 +345,12 @@ class TestValidators(TestCase):
                 self.assertIsInstance(proxy, collections.abc.Iterator)
                 self.assertEqual(list(proxy), list(value))
 
-                validator = IteratorValidator([TypeValidator(map(type, value))])
-                proxy = validator.validate(iter(value))
+                if len(tuple(value)) > 0:
+                    validator = IteratorValidator([TypeValidator(map(type, value))])
+                    proxy = validator.validate(iter(value))
 
-                self.assertIsInstance(proxy, collections.abc.Iterator)
-                self.assertEqual(list(proxy), list(value))
+                    self.assertIsInstance(proxy, collections.abc.Iterator)
+                    self.assertEqual(list(proxy), list(value))
 
         validator = IteratorValidator([TypeValidator([int])])
         self.assertRaises(ValidationError, validator.validate, [1, 2, 3.4])
@@ -346,11 +368,12 @@ class TestValidators(TestCase):
 
                 self.assertIs(proxy, value)
 
-                validator = IterableValidator([TypeValidator(map(type, value))])
-                proxy = validator.validate(value)
+                if len(tuple(value)) > 0:
+                    validator = IterableValidator([TypeValidator(map(type, value))])
+                    proxy = validator.validate(value)
 
-                self.assertIsInstance(proxy, collections.abc.Iterable)
-                self.assertEqual(list(proxy), list(value))
+                    self.assertIsInstance(proxy, collections.abc.Iterable)
+                    self.assertEqual(list(proxy), list(value))
             else:
                 self.assertRaises(ValidationError, IterableValidator().validate, value)
 
