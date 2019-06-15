@@ -208,6 +208,11 @@ class TypeValidator(Validator):
         }
         for attr, cls in methods.items():
             if cls in self.types and hasattr(value, attr):
+                if type(value) == complex and cls in (float, int):
+                    # No conversion from complex to int or float (even if complex
+                    # defines __int__ and __float__)
+                    continue
+
                 yield True
                 cast_value = getattr(value, attr)
                 casted_value = cast_value()
