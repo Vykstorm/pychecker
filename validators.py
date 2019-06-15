@@ -4,6 +4,7 @@ from typing import *
 import collections.abc
 from inspect import signature, Parameter
 from itertools import count, islice
+from functools import update_wrapper
 from operator import attrgetter
 from errors import ValidationError
 from utils import ordinal
@@ -327,6 +328,8 @@ class CallableProxy(collections.abc.Callable, ProxyMixin):
     def __init__(self, *args, **kwargs):
         ProxyMixin.__init__(self, *args, **kwargs)
         assert callable(self.target)
+        update_wrapper(self, self.target)
+
         try:
             self.sig = signature(self.target)
         except:
