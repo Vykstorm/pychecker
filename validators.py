@@ -6,7 +6,7 @@ from inspect import signature, Parameter
 from itertools import count, islice
 from operator import attrgetter
 from errors import ValidationError
-from utils import ordinal, is_compatible
+from utils import ordinal
 import operator
 
 
@@ -136,12 +136,13 @@ class NoneValidator(Validator):
 
 
 
+
 class TypeValidator(Validator):
     '''
     Validator that checks if the given input argument has the expected type
     '''
 
-    def __init__(self, types: Iterable[Type], check_subclasses: bool=True, check_compatible_types: bool=False):
+    def __init__(self, types: Iterable[Type], check_subclasses: bool=True, cast: bool=False):
         '''
         Constructor.
         :param types: An iterable with all possible valid types that argument
@@ -149,13 +150,6 @@ class TypeValidator(Validator):
 
         :param check_subclasses: If True, the argument will be valid also if it is an instance
         of a subclass of any of the classes specified in types. Default is True
-
-        :param check_compatible_types: If this is set to True, all arguments that can be converted
-        to any of the types indicated will also be valid. For example, float items can be converted to complex or
-        int (float defines the metamethods __complex__ & __int__)
-
-        This argument is only used if expected types includes one of the next classes:
-        int, bool, float, complex, str, bytes
         '''
         types = frozenset(types)
         assert len(types) > 0
@@ -163,7 +157,7 @@ class TypeValidator(Validator):
         super().__init__()
         self.types = tuple(types)
         self.check_subclasses = check_subclasses
-        self.check_compatible_types = check_compatible_types
+        self.cast = cast
 
 
     def __call__(self, value):
@@ -173,11 +167,29 @@ class TypeValidator(Validator):
             value_type = type(value)
             valid = any(map(lambda t: value_type == t, self.types))
 
-        if not valid and self.check_compatible_types:
-            basic_types = tuple(frozenset(self.types) & frozenset([int, bool, float, complex, str, bytes]))
-            valid = len(basic_types) > 0 and is_compatible(value, basic_types)
-
+        if not valid and self.cast:
+            return self.make_cast(value)
         return valid
+
+
+    def make_cast(self, value):
+        methods = {
+            '__int__': int,
+            '__trunc__': int,
+            '__bool__': bool,
+            '__str__': str,
+            '__float__': float,
+            '__complex__': complex,
+            '__bytes__': bytes
+        }
+        for attr, cls in methods.items():
+            if cls in self.types and hasattr(value, attr):
+                yield True
+                cast_value = getattr(value, attr)
+                casted_value = cast_value()
+                yield casted_value
+                return
+        return False
 
 
     @property
