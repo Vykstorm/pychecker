@@ -136,6 +136,30 @@ class NoneValidator(Validator):
 
 
 
+class TrueValidator(Validator):
+    '''
+    This validator matches any object that is evaluated to True in an if statemnt
+    '''
+    def __call__(self, value):
+        return bool(value)
+
+    @property
+    def niddle(self):
+        return 'any true value or statement'
+
+
+class FalseValidator(Validator):
+    '''
+    This validator matches any object that is evaluated to False in an if statemnt
+    '''
+    def __call__(self, value):
+        return not bool(value)
+
+    @property
+    def niddle(self):
+        return 'any false value or statement'
+
+
 
 class TypeValidator(Validator):
     '''

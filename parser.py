@@ -26,6 +26,12 @@ def parse_annotation(x, options: Mapping[str, Any]=None) -> Validator:
     if x is Any or x is Ellipsis or x is Optional:
         return AnyValidator()
 
+    # Truth testing validators
+    if x is True:
+        return TrueValidator()
+    if x is False:
+        return FalseValidator()
+
     # Validator instances
     if isinstance(x, Validator):
         return x
