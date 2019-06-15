@@ -311,6 +311,20 @@ class TestValidators(TestCase):
         self.assertRaises(ValidationError, TypeValidator([Foo], check_subclasses=False).validate, Bar())
 
 
+
+    def test_type_validator_cast(self):
+        for method, cls in dict(__int__=int, __float__=float, __str__=str).items():
+            for value in values:
+                if type(value) not in (cls, complex):
+                    validator = TypeValidator([cls], check_subclasses=False, cast=True)
+
+                    self.assertEqual(validator.test(value), hasattr(value, method))
+                    if validator.test(value):
+                        self.assertIsInstance(validator.validate(value), cls)
+
+
+
+
     def test_user_validator(self):
         '''
         Check UserValidator works properly
