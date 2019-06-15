@@ -33,7 +33,8 @@ class Validator:
 
     def test(self, value):
         result = self(value)
-        assert result is None or isinstance(result, (bool, collections.abc.Generator))
+        if result is not None and not isinstance(result, (bool, collections.abc.Generator)):
+            raise TypeError('Validator.__call__ should return None, bool or generator')
 
         if result is None:
             return True
@@ -43,7 +44,8 @@ class Validator:
 
         try:
             valid = next(result)
-            assert isinstance(valid, bool)
+            if not isinstance(valid, bool):
+                raise TypeError('Validator.__call__ generator must always return first a bool value')
 
         except StopIteration as e:
             assert e.value is None or isinstance(e.value, bool)
@@ -55,7 +57,8 @@ class Validator:
 
     def validate(self, value, context={}):
         result = self(value)
-        assert result is None or isinstance(result, (bool, collections.abc.Generator))
+        if result is not None and not isinstance(result, (bool, collections.abc.Generator)):
+            raise TypeError('Validator.__call__ should return None, bool or generator')
 
         if isinstance(result, bool) or result is None:
             # Returned boolean or None (None is the same as True)
@@ -72,7 +75,8 @@ class Validator:
             try:
                 # First item is boolean
                 valid = next(result)
-                assert isinstance(valid, bool)
+                if not isinstance(valid, bool):
+                    raise TypeError('Validator.__call__ generator must always return first a bool value')
 
             except StopIteration as e:
                 assert e.value is None or isinstance(e.value, bool)
