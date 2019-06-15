@@ -166,7 +166,7 @@ class TypeValidator(Validator):
     Validator that checks if the given input argument has the expected type
     '''
 
-    def __init__(self, types: Iterable[Type], check_subclasses: bool=True, cast: bool=False):
+    def __init__(self, types: Iterable[Type], check_subclasses: bool=True, check_compatible_classes: bool=False):
         '''
         Constructor.
         :param types: An iterable with all possible valid types that argument
@@ -181,7 +181,7 @@ class TypeValidator(Validator):
         super().__init__()
         self.types = tuple(types)
         self.check_subclasses = check_subclasses
-        self.cast = cast
+        self.check_compatible_classes = check_compatible_classes
 
 
     def __call__(self, value):
@@ -191,7 +191,7 @@ class TypeValidator(Validator):
             value_type = type(value)
             valid = any(map(lambda t: value_type == t, self.types))
 
-        if not valid and self.cast:
+        if not valid and self.check_compatible_classes:
             return self.make_cast(value)
         return valid
 

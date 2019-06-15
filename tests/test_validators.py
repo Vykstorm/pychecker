@@ -312,11 +312,11 @@ class TestValidators(TestCase):
 
 
 
-    def test_type_validator_cast(self):
+    def test_type_validator_compatible_classes(self):
         for method, cls in dict(__int__=int, __float__=float, __str__=str).items():
             for value in values:
                 if type(value) not in (cls, complex):
-                    validator = TypeValidator([cls], check_subclasses=False, cast=True)
+                    validator = TypeValidator([cls], check_subclasses=False, check_compatible_classes=True)
 
                     self.assertEqual(validator.test(value), hasattr(value, method))
                     if validator.test(value):

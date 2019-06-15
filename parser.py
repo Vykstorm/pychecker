@@ -85,11 +85,11 @@ def parse_annotation(x, options: Mapping[str, Any]=None) -> Validator:
             return x()
 
         # Regular type validator
-        return TypeValidator([x], check_subclasses=not options['ignore_subclasses'], cast=options['cast'])
+        return TypeValidator([x], check_subclasses=not options['ignore_subclasses'], check_compatible_classes=options['match_compatible_classes'])
 
     if isinstance(x, collections.abc.Iterable) and all(map(isclass, x)):
         # Type validator but multiple types indicated
-        return TypeValidator(x, check_subclasses=not options['ignore_subclasses'], cast=options['cast'])
+        return TypeValidator(x, check_subclasses=not options['ignore_subclasses'], check_compatible_classes=options['match_compatible_classes'])
 
     if callable(x):
         # User validator
