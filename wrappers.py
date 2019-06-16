@@ -177,15 +177,16 @@ class ValidateFuncWrapper(CallableWrapper):
 
         args = []
         varargs = []
-        varkwargs = bounded.kwargs
+        varkwargs = {}
 
         for key, value in bounded.arguments.items():
             param = self.signature.parameters[key]
 
             if param.kind == Parameter.VAR_KEYWORD:
                 # **kwargs
-                continue
-            if param.kind == Parameter.VAR_POSITIONAL:
+                varkwargs.update(value)
+
+            elif param.kind == Parameter.VAR_POSITIONAL:
                 # *args
                 if key in self.param_validators and self.options['match_varargs']:
                     validate = partial(self.param_validators[key].validate, context={'func': self.__name__, 'param': 'items on *{}'.format(key)})
@@ -199,7 +200,7 @@ class ValidateFuncWrapper(CallableWrapper):
                 args.append(validate(value))
 
         args += varargs
-        return args, kwargs
+        return args, varkwargs
 
 
 
