@@ -166,7 +166,7 @@ class ValidateFuncWrapper(CallableWrapper):
         keyword arguments that should be passed when calling to the wrapped function
         '''
         if not self.options['match_args']:
-            # Dont validate args
+            # Dont validate input arguments
             return args, kwargs
 
         bounded = self.bind(*args, **kwargs)
@@ -180,7 +180,7 @@ class ValidateFuncWrapper(CallableWrapper):
 
             if param.kind == Parameter.VAR_KEYWORD:
                 # **kwargs
-                if key in self.param_validators:
+                if key in self.param_validators and self.options['match_varkwargs']:
                     validate = partial(self.param_validators[key].validate, context={'func': self.__name__, 'param': 'values on **{}'.format(key)})
                     varkwargs.update(zip(value.keys(), map(validate, value.values())))
                 else:

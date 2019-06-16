@@ -15,6 +15,7 @@ setting_specs = dict(
     match_self=bool,
     match_args=bool,
     match_varargs=bool,
+    match_varkwargs=bool,
     match_defaults=bool,
     match_return=bool
 )
@@ -31,6 +32,7 @@ default_settings = dict(
     match_self=True,
     match_args=True,
     match_varargs=True,
+    match_varkwargs=True,
     match_defaults=False,
     match_return=True
 )
