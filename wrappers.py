@@ -76,10 +76,6 @@ class ValidateFuncWrapper(CallableWrapper):
         super().__init__(func)
         self.options = options
 
-        # No varadic keyword parameter annotations allowed
-        if self.varkwargs_param is not None and self.varkwargs_param.annotation is not Signature.empty:
-            raise ValueError('Varadic keyword parameter annotations are not allowed')
-
 
     @property
     @lru_cache(maxsize=1)
@@ -184,7 +180,11 @@ class ValidateFuncWrapper(CallableWrapper):
 
             if param.kind == Parameter.VAR_KEYWORD:
                 # **kwargs
-                varkwargs.update(value)
+                if key in self.param_validators:
+                    validate = partial(self.param_validators[key].validate, context={'func': self.__name__, 'param': 'values on **{}'.format(key)})
+                    varkwargs.update(zip(value.keys(), map(validate, value.values())))
+                else:
+                    varkwargs.update(value)
 
             elif param.kind == Parameter.VAR_POSITIONAL:
                 # *args

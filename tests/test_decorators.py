@@ -102,7 +102,6 @@ class TestDecorators(TestCase):
         '''
         Check that we can decorate a function with varadict keyword arguments (**kwargs)
         Also verifies that values passed to the wrapped function are consistent with its signature
-        and ensures that **kwargs parameter cannot have any annotation
         '''
 
         @checked
@@ -117,16 +116,13 @@ class TestDecorators(TestCase):
         def qux(x, y, *args, **kwargs):
             self.assertEqual(kwargs, {'a': 1, 'b': 2})
 
+        @checked
+        def mux(**kwargs: int):
+            pass
+
         foo(b=2, a=1)
         bar(0, 0, a=1, b=2)
         qux(0, 0, b=2, a=1)
-
-        def mux():
-            @checked
-            def baz(**kwargs : str):
-                pass
-            baz()
-        self.assertRaises(Exception, mux)
 
 
     def test_wrapped_func_missing_arg(self):
