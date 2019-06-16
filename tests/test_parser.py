@@ -3,6 +3,7 @@ import unittest
 from unittest import TestCase
 from validators import *
 from errors import *
+from config import Settings
 from itertools import *
 from inspect import *
 from types import new_class
@@ -74,6 +75,26 @@ class TestParser(TestCase):
         validator = parse(types)
         self.assertIsInstance(validator, TypeValidator)
         self.assertEqual(frozenset(validator.types), frozenset(types))
+
+
+        # Check that type validator settings (check_compatible_classes, check_subclasses) are set properly
+        for type in types:
+            validator = parse(type, Settings(match_compatible_classes=True))
+            self.assertIsInstance(validator, TypeValidator)
+            self.assertTrue(validator.check_compatible_classes)
+
+            validator = parse(type, Settings(match_compatible_classes=False))
+            self.assertIsInstance(validator, TypeValidator)
+            self.assertFalse(validator.check_compatible_classes)
+
+            validator = parse(type, Settings(ignore_subclasses=True))
+            self.assertIsInstance(validator, TypeValidator)
+            self.assertFalse(validator.check_subclasses)
+
+            validator = parse(type, Settings(ignore_subclasses=False))
+            self.assertIsInstance(validator, TypeValidator)
+            self.assertTrue(validator.check_subclasses)
+
 
 
     def test_parse_Iterator(self):
